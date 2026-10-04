@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#5c4ee5" />
+  <meta name="description" content="Interactive grades 7-8 math reasoning practice: algebra, equality, unit conversions, percents, and word problems." />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="style.css" />
+  <title>Math Quest - Reasoning Builder</title>
+</head>
+<body>
+<header class="topbar">
+  <button id="brandHome" class="brand" aria-label="Go to Math Quest home">
+    <div class="brand-mark">MQ</div>
+    <div><strong>Math Quest</strong><span>Reasoning Builder</span></div>
+  </button>
+  <div class="stats" aria-label="Progress stats">
+    <span title="Experience points">⭐ <b id="xp">0</b> XP</span>
+    <span title="Current streak">🔥 <b id="streak">0</b></span>
+  </div>
+</header>
+
+<main>
+  <section id="homeView" class="view active">
+    <div class="hero card">
+      <div class="hero-copy">
+        <div class="eyebrow">YOUR MATH ADVENTURE</div>
+        <h1>Think it through.<br><span>Level it up.</span></h1>
+        <p>Every quest rewards the thinking — not just the final answer. Pick a world and build your reasoning power one move at a time.</p>
+        <div class="hero-badges"><span>🧩 Drag math tiles</span><span>✏️ Scratch it out</span><span>🎯 Smart review</span><span>👑 Boss quests</span><span>✨ Unlock levels</span></div>
+      </div>
+      <div class="hero-game" aria-label="Interactive balance illustration">
+        <div class="spark s1">✦</div><div class="spark s2">✦</div><div class="spark s3">✦</div>
+        <div class="balance-visual hero-balance">
+          <div class="balance-beam"><span></span></div>
+          <div class="balance-post"></div>
+          <div class="balance-base"></div>
+          <div class="balance-pan left"><b>x + 5</b><small>LEFT SIDE</small></div>
+          <div class="balance-pan right"><b>12</b><small>RIGHT SIDE</small></div>
+        </div>
+        <div class="hero-callout">Do the same thing to both sides!</div>
+      </div>
+    </div>
+
+    <div class="section-heading">
+      <div><div class="eyebrow">CHOOSE A WORLD</div><h2>Your quest map</h2></div>
+      <div class="overall-pill"><span id="overallStars">0</span> / 15 ⭐</div>
+    </div>
+    <div id="skillGrid" class="quest-grid"></div>
+
+    <div class="card boss-launch-card">
+      <div class="daily-icon">👑</div>
+      <div><h3>Boss Quest</h3><p>Combine percents, word-problem reasoning, and balanced algebra in one multi-step challenge.</p></div>
+      <button id="bossBtn" class="primary">Start boss</button>
+    </div>
+
+    <div class="card daily-card smart-review-card">
+      <div class="daily-icon">🎯</div>
+      <div><h3>Smart Review</h3><p>Practice the skill the game thinks needs the most attention. It adapts as mistakes are corrected.</p></div>
+      <button id="quickMixBtn" class="secondary">Start smart review</button>
+    </div>
+
+    <div class="card parent-card">
+      <div><h3>📊 Parent / teacher view</h3><p>See reasoning vs. calculation accuracy and where extra practice will help most.</p></div>
+      <button id="parentBtn" class="secondary">Open progress</button>
+    </div>
+  </section>
+
+  <section id="learnView" class="view">
+    <button class="back" data-back>← Quest map</button>
+    <div class="lesson-head">
+      <div><div id="skillEyebrow" class="eyebrow"></div><h1 id="skillTitle"></h1></div>
+      <div id="masteryPill" class="mastery-pill"></div>
+    </div>
+
+    <div class="path-label"><span>LEVEL PATH</span><small>Clear 2 successful quests to unlock the next stop.</small></div>
+    <nav class="stage-tabs" aria-label="Learning level path">
+      <button data-stage="teach" data-base-label="See it"><span>👀</span><b>Teach</b><small>See it</small></button>
+      <button data-stage="guided" data-base-label="Get hints"><span>🧭</span><b>Guided</b><small>Get hints</small></button>
+      <button data-stage="independent" data-base-label="You lead"><span>🚀</span><b>Independent</b><small>You lead</small></button>
+      <button data-stage="challenge" data-base-label="Mix it up"><span>🏆</span><b>Challenge</b><small>Mix it up</small></button>
+    </nav>
+
+    <div id="lessonCard" class="card lesson-card"></div>
+    <div id="problemCard" class="card problem-card"></div>
+
+    <section class="card scratch-card" aria-label="Scratch pad">
+      <div class="scratch-head">
+        <div><h3>✏️ Scratch pad</h3><p>Draw, work out arithmetic, or jot an equation without leaving the quest.</p></div>
+        <button id="scratchToggle" class="secondary" type="button" aria-expanded="false">Open scratch pad</button>
+      </div>
+      <div id="scratchPanel" class="scratch-panel" hidden>
+        <div class="scratch-tools" role="toolbar" aria-label="Scratch pad tools">
+          <button id="scratchPen" class="tool active" type="button">✏️ Pen</button>
+          <button id="scratchEraser" class="tool" type="button">◻️ Eraser</button>
+          <button id="scratchUndo" class="tool" type="button">↶ Undo</button>
+          <button id="scratchClear" class="tool" type="button">Clear</button>
+        </div>
+        <canvas id="scratchCanvas" aria-label="Drawing scratch pad"></canvas>
+        <label class="scratch-note">Keyboard notes / equations
+          <textarea id="scratchText" rows="3" placeholder="Example: subtract 6 from both sides…"></textarea>
+        </label>
+      </div>
+    </section>
+  </section>
+
+  <section id="parentView" class="view">
+    <button class="back" data-back>← Quest map</button>
+    <div class="section-heading"><div><div class="eyebrow">PARENT VIEW</div><h1>Progress dashboard</h1></div></div>
+    <p class="muted">Progress is saved only on this device/browser.</p>
+    <div id="progressGrid" class="progress-grid"></div>
+    <div class="card insight-card">
+      <h3>How to read this</h3>
+      <p><b>Reasoning accuracy</b> tracks choices like selecting an operation or deciding what a percent question is asking. <b>Answer accuracy</b> tracks the final calculation. A gap between the two helps show whether the method or the arithmetic needs more work.</p>
+      <div class="button-row"><button id="resetProgress" class="danger secondary">Reset progress</button></div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="celebration" class="celebration" aria-hidden="true"></div>
+
+<footer>Built to practice mathematical reasoning • Adaptive review • Installable PWA • Works offline after first load</footer>
+
+<script src="question-bank.js"></script>
+<script src="generators.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
