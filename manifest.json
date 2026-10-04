@@ -1,5 +1,6 @@
 {
   "name": "Math Quest - Reasoning Builder",
+  "scope": "./",
   "short_name": "Math Quest",
   "start_url": "./",
   "display": "standalone",

@@ -22,6 +22,22 @@ window.MATH_BANK = {
       challenge:[{kind:'eq_bothsides',range:[2,10]},{kind:'eq_distribute',range:[2,8]}]
     }
   },
+  moving: {
+    title: 'Across the = Sign', icon: '↔️',
+    description: 'Learn what "move it to the other side" REALLY means — and why + flips to − and × flips to ÷.',
+    lesson: {
+      teach: ['"Moving" a term is a shortcut for doing the opposite operation to BOTH sides.', 'When a term crosses the = sign, its operation flips: + ↔ −, × ↔ ÷.', '3x means 3 TIMES x — so the 3 crosses as ÷ 3, never − 3.'],
+      guided: ['Unwrap from the outside in: the + or − comes off before the × or ÷.', 'x can end up on either side: 7 = x is the same as x = 7.'],
+      independent: ['Say what really happens: "subtract 5 from both sides" — then do the shortcut.', 'Check by plugging your answer back into the ORIGINAL equation.'],
+      challenge: ['With x on both sides, move the x-terms together first.', 'Spot the glitch: find the illegal move, then fix it.']
+    },
+    templates: {
+      teach: [{kind:'move_add'},{kind:'move_add'},{kind:'move_mult'}],
+      guided: [{kind:'move_mult'},{kind:'move_div'},{kind:'move_flipside'},{kind:'move_twostep'}],
+      independent: [{kind:'move_twostep'},{kind:'move_flipside'},{kind:'move_div'},{kind:'move_wrong'}],
+      challenge: [{kind:'move_bothsides'},{kind:'move_wrong'},{kind:'move_twostep'}]
+    }
+  },
   algebra: {
     title:'Basic Algebra', icon:'🧩',
     description:'Solve single-variable equations by identifying and undoing operations.',
@@ -48,10 +64,10 @@ window.MATH_BANK = {
       challenge:['Chain two conversions and use reasonableness to catch mistakes.']
     },
     templates:{
-      teach:[{kind:'conv_ft_in'},{kind:'conv_hr_min'}],
-      guided:[{kind:'conv_lb_oz'},{kind:'conv_metric'}],
-      independent:[{kind:'conv_ft_in'},{kind:'conv_hr_min'},{kind:'conv_metric'}],
-      challenge:[{kind:'conv_yd_in'},{kind:'conv_minutes_clock'}]
+      teach:[{kind:'conv_ft_in'},{kind:'conv_hr_min'},{kind:'conv_factor_pick'}],
+      guided:[{kind:'conv_lb_oz'},{kind:'conv_metric'},{kind:'conv_factor_pick'}],
+      independent:[{kind:'conv_factor_pick'},{kind:'conv_hr_min'},{kind:'conv_metric'},{kind:'conv_rate'}],
+      challenge:[{kind:'conv_yd_in'},{kind:'conv_minutes_clock'},{kind:'conv_rate'}]
     }
   },
   percents:{
@@ -64,10 +80,10 @@ window.MATH_BANK = {
       challenge:['Reverse percent problems start from a final or partial amount and work back to the original.']
     },
     templates:{
-      teach:[{kind:'pct_of'},{kind:'pct_discount_choice'}],
-      guided:[{kind:'pct_discount'},{kind:'pct_tip'},{kind:'pct_whole'}],
-      independent:[{kind:'pct_discount'},{kind:'pct_increase'},{kind:'pct_whole'}],
-      challenge:[{kind:'pct_reverse_discount'},{kind:'pct_change'}]
+      teach:[{kind:'pct_left'},{kind:'pct_of'},{kind:'pct_discount_choice'}],
+      guided:[{kind:'pct_discount'},{kind:'pct_tip'},{kind:'pct_whole'},{kind:'pct_multiplier'}],
+      independent:[{kind:'pct_multiplier'},{kind:'pct_increase'},{kind:'pct_whole'},{kind:'pct_multiplier'}],
+      challenge:[{kind:'pct_reverse_discount'},{kind:'pct_change'},{kind:'pct_stack'},{kind:'pct_multiplier'}]
     }
   },
   words:{
@@ -80,10 +96,10 @@ window.MATH_BANK = {
       challenge:['Ignore distracting details and combine more than one step when needed.']
     },
     templates:{
-      teach:[{kind:'word_linear'},{kind:'word_time'}],
-      guided:[{kind:'word_linear'},{kind:'word_discount'},{kind:'word_conversion'}],
+      teach:[{kind:'word_translate'},{kind:'word_linear'},{kind:'word_time'}],
+      guided:[{kind:'word_translate'},{kind:'word_linear'},{kind:'word_discount'},{kind:'word_conversion'}],
       independent:[{kind:'word_linear'},{kind:'word_percentwhole'},{kind:'word_split'}],
-      challenge:[{kind:'word_battery'},{kind:'word_goal'},{kind:'word_linear_decimal'}]
+      challenge:[{kind:'word_battery'},{kind:'word_goal'},{kind:'word_linear_decimal'},{kind:'pct_stack'}]
     }
   }
 };

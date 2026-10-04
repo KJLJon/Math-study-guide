@@ -12,10 +12,12 @@
     alg_onestep_add:'inverse operations',alg_onestep_mult:'undoing multiplication',alg_twostep:'two-step equations',alg_fraction:'undoing division',alg_distribute:'distribution and inverse operations',
     conv_ft_in:'larger vs. smaller units',conv_hr_min:'time conversions',conv_lb_oz:'weight conversions',conv_metric:'metric conversions',conv_yd_in:'multi-step conversions',conv_minutes_clock:'minutes and hours',
     pct_of:'finding a percent amount',pct_discount_choice:'discount amount vs. final price',pct_discount:'final price after a discount',pct_tip:'percent increase / tip',pct_whole:'part ÷ rate to find the whole',pct_increase:'using 1 + rate',pct_reverse_discount:'working backward from a sale price',pct_change:'percent change',
-    word_linear:'turning a story into an equation',word_time:'time relationships',word_discount:'percent word problems',word_conversion:'conversion word problems',word_percentwhole:'finding the original whole',word_split:'multi-step word problems',word_battery:'percent remaining',word_goal:'goal equations',word_linear_decimal:'decimal rate equations'
+    word_linear:'turning a story into an equation',word_time:'time relationships',word_discount:'percent word problems',word_conversion:'conversion word problems',word_percentwhole:'finding the original whole',word_split:'multi-step word problems',word_battery:'percent remaining',word_goal:'goal equations',word_linear_decimal:'decimal rate equations',
+    move_add:'flipping + and − across the = sign',move_mult:'× crosses as ÷ (not −)',move_div:'÷ crosses as ×',move_flipside:'x on the right side',move_twostep:'which term crosses first',move_bothsides:'x-terms on both sides',move_wrong:'spotting illegal moves',
+    pct_left:'what percent is left (1 − rate)',pct_multiplier:'choosing rate, 1 − rate, 1 + rate, or ÷',pct_stack:'discount then tax',conv_factor_pick:'unit fractions: × or ÷',conv_rate:'rate conversions',word_translate:'translating words into equations'
   };
   const worldStyle = {
-    equality:['#dcf5f1','#2ea7a0'], algebra:['#ece9ff','#5c4ee5'], conversions:['#e7f1fd','#4588d7'], percents:['#fce5ef','#d95e93'], words:['#fff4cf','#d39b20']
+    equality:['#dcf5f1','#2ea7a0'], moving:['#e3f6e8','#2f9e57'], algebra:['#ece9ff','#5c4ee5'], conversions:['#e7f1fd','#4588d7'], percents:['#fce5ef','#d95e93'], words:['#fff4cf','#d39b20']
   };
 
   function defaultSkillProgress(){
@@ -40,6 +42,34 @@
   let currentSkill=null,currentStage='teach',currentProblem=null,currentTemplateKind=null;
   let stepIndex=0,reasonMiss=false,answered=false,questionCount=0,reasonAttempted=false,answerAttempts=0,hintLevel=0;
   let adaptiveFocus='',forcedTemplateKind=null,manipState=null,draggedRecently=0;
+
+  /* ---------- sound effects (tiny WebAudio blips, mutable) ---------- */
+  let muted=false;try{muted=localStorage.getItem('mathQuestMuted')==='1'}catch{}
+  let audioCtx=null;
+  const TONES={tap:[[520,.04]],good:[[660,.08],[880,.12]],combo:[[660,.06],[880,.06],[1175,.12]],bad:[[196,.18]],win:[[523,.09],[659,.09],[784,.09],[1046,.22]],whoosh:[[330,.05],[495,.06]],unlock:[[440,.08],[554,.08],[659,.08],[880,.25]]};
+  function sfx(type){
+    if(muted)return;
+    try{
+      const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;audioCtx||=new AC();
+      let t=audioCtx.currentTime;
+      for(const [f,dur] of TONES[type]||[]){const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type==='bad'?'triangle':'sine';o.frequency.value=f;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.11,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g);g.connect(audioCtx.destination);o.start(t);o.stop(t+dur+.03);t+=dur*.85}
+    }catch{}
+  }
+  function renderMute(){const b=$('#muteBtn');if(b){b.textContent=muted?'🔇':'🔊';b.setAttribute('aria-label',muted?'Sound off':'Sound on')}}
+  // Randomize option order so the right answer is not always "A".
+  function shuffleSteps(p){
+    for(const st of p.steps||[]){
+      const right=st.options[st.correct],order=st.options.map((_,i)=>i);
+      for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]]}
+      st.options=order.map(i=>st.options[i]);st.correct=st.options.indexOf(right);
+    }
+    return p;
+  }
+  const isEquationSkill=k=>k==='equality'||k==='algebra';
+  function problemEquation(p){
+    if(p.equation)return p.equation;
+    const m=String(p.prompt).match(/^Solve:\s*(.+=.+)$/);return m?m[1]:null;
+  }
 
   const pct=(a,b)=>b?Math.round(a/b*100):0;
   const mastery=k=>{const p=progress.skills[k];return Math.round((pct(p.reasonCorrect,p.reasonTotal)+pct(p.answerCorrect,p.answerTotal))/2)};
@@ -72,9 +102,9 @@
 
   const escapeHtml=s=>String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 
-  function save(){ localStorage.setItem('mathQuestProgress',JSON.stringify(progress)); renderStats(); }
+  function save(){ try{localStorage.setItem('mathQuestProgress',JSON.stringify(progress))}catch{} renderStats(); }
   function renderStats(){ $('#xp').textContent=progress.xp; $('#streak').textContent=progress.streak; }
-  function show(id){ $$('.view').forEach(v=>v.classList.remove('active')); $(id).classList.add('active'); window.scrollTo({top:0,behavior:'smooth'}); }
+  function show(id){ if(id!=='#blitzView')window.MathBlitz?.stop(); $$('.view').forEach(v=>v.classList.remove('active')); $(id).classList.add('active'); window.scrollTo({top:0,behavior:'smooth'}); }
   function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast.timer); toast.timer=setTimeout(()=>t.classList.remove('show'),1400); }
   function celebrate(){
     const c=$('#celebration'); c.innerHTML='';
@@ -96,7 +126,7 @@
       b.innerHTML=`<div class="quest-top"><div class="quest-icon">${skill.icon}</div><div class="quest-stars" aria-label="${stars} of 3 stars">${'⭐'.repeat(stars)}${'☆'.repeat(3-stars)}</div></div><h3>${skill.title}</h3><p>${skill.description}</p>${miniPathMarkup(key)}<div class="quest-footer"><div class="skill-meter"><span style="width:${m}%"></span></div><small>${m}%</small></div>`;
       b.addEventListener('click',()=>openSkill(key)); grid.appendChild(b);
     });
-    $('#overallStars').textContent=totalStars; renderStats();
+    $('#overallStars').textContent=totalStars; $('#maxStars').textContent=Object.keys(BANK).length*3; renderStats();
   }
 
   function openSkill(key,stage='teach'){
@@ -107,7 +137,7 @@
   function updateMastery(){ $('#masteryPill').textContent=`${starCount(currentSkill)} / 3 ⭐  •  ${mastery(currentSkill)}% mastery`; }
 
   function openBossQuest(){
-    currentSkill='algebra';currentStage='challenge';questionCount=4;currentTemplateKind='boss_combo';currentProblem=buildBossProblem();
+    currentSkill='algebra';currentStage='challenge';questionCount=4;currentTemplateKind='boss_combo';currentProblem=shuffleSteps(buildBossProblem());
     $('#skillEyebrow').textContent='👑  MULTI-SKILL CHALLENGE';$('#skillTitle').textContent='Boss Quest';updateMastery();
     $$('.stage-tabs button').forEach(b=>b.classList.toggle('active',b.dataset.stage==='challenge'));
     $('#lessonCard').innerHTML='<h3>Put several ideas together</h3><div class="lesson-strip"><div class="rule"><strong>1 • PERCENT</strong>Find the discounted target.</div><div class="rule"><strong>2 • MODEL</strong>Turn the story into an equation.</div><div class="rule"><strong>3 • BALANCE</strong>Solve using equal operations on both sides.</div></div><div class="lesson-tip">👑 Each correct reasoning move clears one boss gem. The final answer is only the last step.</div>';
@@ -140,13 +170,15 @@
     const tips=BANK[currentSkill].lesson[currentStage];
     const heading=currentStage==='teach'?'See the idea':currentStage==='guided'?'Practice with a guide':currentStage==='independent'?'You choose the path':'Put it all together';
     const labels=['NOTICE','THINK','CHECK'];
-    $('#lessonCard').innerHTML=`<h3>${heading}</h3><div class="lesson-strip">${tips.slice(0,3).map((x,i)=>`<div class="rule"><strong>${labels[i]||'TIP'}</strong>${x}</div>`).join('')}</div><div class="lesson-tip">💡 ${lessonNudge(currentSkill,currentStage)}</div>`;
+    $('#lessonCard').innerHTML=`<div class="lesson-card-head"><h3>${heading}</h3>${window.MathExplainers?.has(currentSkill)?`<button type="button" class="watch-btn" id="watchIdea">🎬 Watch the idea</button>`:''}</div><div class="lesson-strip">${tips.slice(0,3).map((x,i)=>`<div class="rule"><strong>${labels[i]||'TIP'}</strong>${x}</div>`).join('')}</div><div class="lesson-tip">💡 ${lessonNudge(currentSkill,currentStage)}</div>`;
+    $('#watchIdea')?.addEventListener('click',()=>window.MathExplainers.open(currentSkill,BANK[currentSkill].title));
     renderStageLocks();nextProblem();
   }
 
   function lessonNudge(skill,stage){
     if(skill==='equality') return stage==='teach'?'Picture the equal sign as a perfectly balanced scale. Every legal move must keep it balanced.':'Say the operation out loud: “I am ___ both sides by ___.”';
-    if(skill==='algebra') return 'Your goal is not to “move” numbers. Your goal is to undo operations until x is alone.';
+    if(skill==='moving') return stage==='teach'?'Press ▶ Show the move to watch a term cross the = sign — and see what REALLY happens on both sides.':'Name what is attached to x, flip it (+↔−, ×↔÷), and do it to BOTH sides.';
+    if(skill==='algebra') return '“Moving” a number is really undoing an operation on BOTH sides. Unwrap x: last thing on, first thing off.';
     if(skill==='conversions') return 'Predict first: should the number get bigger or smaller? That catches lots of mistakes.';
     if(skill==='percents') return 'Before calculating, decide: do you need the change, the final amount, or the original whole?';
     return 'Name the unknown and the relationship before reaching for the calculator.';
@@ -161,7 +193,7 @@
     return pick(pool);
   }
   function buildMistakeProblem(skill){
-    if(skill==='equality'||skill==='algebra') return {prompt:'Spot the glitch: Ava solves 3x + 6 = 21 by writing 3x = 21, then x = 7.',steps:[{q:'What is the FIRST mistake?',options:['She forgot to subtract 6 from both sides','She should add 6 to both sides','She should divide by 3 before changing anything','There is no mistake'],correct:0,why:'The +6 must be undone on both sides first, giving 3x = 15.'}],answer:5,hint:'Correct the first illegal step, then finish the equation.',mistake:true};
+    if(skill==='equality'||skill==='algebra'||skill==='moving') return {prompt:'Spot the glitch: Ava solves 3x + 6 = 21 by writing 3x = 21, then x = 7.',steps:[{q:'What is the FIRST mistake?',options:['She forgot to subtract 6 from both sides','She should add 6 to both sides','She should divide by 3 before changing anything','There is no mistake'],correct:0,why:'The +6 must be undone on both sides first, giving 3x = 15.'}],answer:5,hint:'Correct the first illegal step, then finish the equation.',mistake:true};
     if(skill==='percents') return {prompt:'Spot the glitch: A $80 hoodie is 25% off. Jordan calculates 80 × 0.25 = 20 and says the sale price is $20.',steps:[{q:'What did Jordan actually find?',options:['The discount amount','The final sale price','The original price','A 20% discount'],correct:0,why:'$20 is the amount taken off. The sale price is the original minus that amount.'}],answer:60,unit:'$',hint:'The amount off and the amount paid are different.',mistake:true};
     if(skill==='conversions') return {prompt:'Spot the glitch: 4 feet = 4 ÷ 12 = 0.33 inches.',steps:[{q:'What is wrong with the setup?',options:['Feet → inches should make the number larger, so multiply by 12','Feet → inches should divide by 12','The conversion factor is 60','Nothing is wrong'],correct:0,why:'Inches are smaller units, so it takes more of them. 4 ft = 48 in.'}],answer:48,unit:'in',hint:'Predict whether the numerical value should grow or shrink.',mistake:true};
     return {prompt:'Spot the glitch: A club has $15 and earns $5 per sale. To reach $40, Riley writes 15x + 5 = 40.',steps:[{q:'Which relationship matches the story?',options:['15 + 5x = 40','15x + 5 = 40','40 + 5x = 15','15 + 40x = 5'],correct:0,why:'$15 is the fixed starting amount; $5 is earned for each sale.'}],answer:5,unit:'sales',hint:'Fixed amount + rate × number = total.',mistake:true};
@@ -185,7 +217,7 @@
         {q:`Which calculation gives the sale price?`,options:[`${jacket} × ${(100-discount)/100}`,`${jacket} × ${discount/100}`,`${jacket} ÷ ${(100-discount)/100}`,`${jacket} + ${discount}`],correct:0,why:`Final price after a discount is original × (1 − rate), so the sale price is $${fmt(sale)}.`},
         {q:`Now which equation models the money you need?`,options:[`${already} + ${earned}h = ${fmt(sale)}`,`${already}h + ${earned} = ${fmt(sale)}`,`${fmt(sale)} + ${earned}h = ${already}`,`${earned} ÷ h = ${fmt(sale)}`],correct:0,why:'Starting money + hourly earnings × hours = the amount needed.'},
         {q:`What should you do first to solve ${already} + ${earned}h = ${fmt(sale)}?`,options:[`Subtract ${already} from both sides`,`Subtract ${already} only from the left`,`Divide everything by ${already || earned}`,'Guess hours until it works'],correct:0,why:`Subtracting ${already} from both sides keeps the equation balanced and leaves ${earned}h = ${fmt(sale-already)}.`},
-        {q:`Last reasoning move: how do you isolate h?`,options:[`Divide both sides by ${earned}`,`Multiply both sides by ${earned}`,`Subtract ${earned} from both sides`,'Move h across the equal sign'],correct:0,why:`Division undoes the multiplication by ${earned}.`}
+        {q:`Last reasoning move: how do you isolate h?`,options:[`Divide both sides by ${earned}`,`Multiply both sides by ${earned}`,`Subtract ${earned} from both sides`,`Move the ${earned} across as −${earned}`],correct:0,why:`Division undoes the multiplication by ${earned}.`}
       ],
       answer:hours,unit:'hours',
       hint:`Find the sale price first. Then solve ${already} + ${earned}h = ${fmt(sale)}.`
@@ -194,9 +226,9 @@
 
   function nextProblem(){
     questionCount++;
-    if(currentStage==='challenge' && questionCount%4===0){adaptiveFocus='';currentTemplateKind='boss_combo';currentProblem=buildBossProblem()}
-    else if(currentStage==='challenge' && questionCount%3===0){adaptiveFocus='';currentTemplateKind='mistake';currentProblem=buildMistakeProblem(currentSkill)}
-    else {const t=selectTemplate();currentTemplateKind=t.kind;const g=GENERATORS[t.kind];if(!g)throw new Error(`Unknown question generator: ${t.kind}`);currentProblem=g();}
+    if(currentStage==='challenge' && questionCount%4===0){adaptiveFocus='';currentTemplateKind='boss_combo';currentProblem=shuffleSteps(buildBossProblem())}
+    else if(currentStage==='challenge' && questionCount%3===0){adaptiveFocus='';currentTemplateKind='mistake';currentProblem=shuffleSteps(buildMistakeProblem(currentSkill))}
+    else {const t=selectTemplate();currentTemplateKind=t.kind;const g=GENERATORS[t.kind];if(!g)throw new Error(`Unknown question generator: ${t.kind}`);currentProblem=shuffleSteps(g());}
     stepIndex=0;reasonMiss=false;answered=false;reasonAttempted=false;answerAttempts=0;hintLevel=0; renderProblem();
   }
 
@@ -240,32 +272,21 @@
     if(currentProblem.boss){z.innerHTML=bossVisual();bindVisualInteractions();return;}
     if(currentSkill==='equality'||currentSkill==='algebra'){
       const e=equationState();
-      z.innerHTML=`<div class="balance-stage ${stepIndex?'changed show-op':''}"><div class="balance-op">${escapeHtml(e.op||'Keep both sides equal')}</div><div class="balance-beam"><span></span></div><div class="balance-post"></div><div class="balance-base"></div><div class="balance-pan left"><b>${escapeHtml(e.left)}</b><small>LEFT SIDE</small></div><div class="balance-pan right"><b>${escapeHtml(e.right)}</b><small>RIGHT SIDE</small></div></div>${algebraTilesVisual(e)}<div class="visual-caption" id="labCaption">The equation is a balance. A legal move changes both sides equally.</div>${mathLabControls()}${equationTrail()}`;
-      bindVisualInteractions();return;
+      z.innerHTML=`<div class="balance-stage ${stepIndex?'changed show-op':''}"><div class="balance-op">${escapeHtml(e.op||'Keep both sides equal')}</div><div class="balance-beam"><span></span></div><div class="balance-post"></div><div class="balance-base"></div><div class="balance-pan left"><b>${escapeHtml(e.left)}</b><small>LEFT SIDE</small></div><div class="balance-pan right"><b>${escapeHtml(e.right)}</b><small>RIGHT SIDE</small></div></div>${algebraTilesVisual(e)}<div class="visual-caption" id="labCaption">The equation is a balance. A legal move changes both sides equally.</div>${mathLabControls()}${equationTrail()}${workshopButton()}`;
+      bindVisualInteractions();bindWorkshopButton();return;
     }
-    if(currentSkill==='percents'){ z.innerHTML=percentVisual();bindVisualInteractions();return; }
-    if(currentSkill==='conversions'){ z.innerHTML=conversionVisual(); return; }
-    z.innerHTML=wordVisual();
+    if(currentSkill==='moving'&&currentProblem.moves){ z.innerHTML=moveVisual();bindMoveVisual();return; }
+    if(currentSkill==='moving'){ z.innerHTML=`<div class="visual-caption">Fix the first illegal move, then solve it the right way.</div>${workshopButton()}`;bindWorkshopButton();return; }
+    if(currentProblem.pct){ z.innerHTML=percentTape();bindPercentTape();return; }
+    if(currentProblem.conv){ z.innerHTML=conversionVisual();bindConversionVisual();return; }
+    if(currentSkill==='percents'||currentSkill==='conversions'){ z.innerHTML=wordVisual();bindWordVisual();return; }
+    z.innerHTML=wordVisual();bindWordVisual();
   }
 
   function equationTrail(){
     if(stepIndex===0)return '';
     const raw=currentProblem.prompt.replace(/^Solve:\s*/,'');const e=equationState();
     return `<div class="equation-trail"><span class="trail-step">${escapeHtml(raw)}</span><span class="trail-arrow">→</span><span class="trail-step">${escapeHtml(e.left)} = ${escapeHtml(e.right)}</span></div>`;
-  }
-
-  function percentVisual(){
-    const prompt=currentProblem.prompt; const rateMatch=prompt.match(/(\d+(?:\.\d+)?)%/); const rate=rateMatch?Math.max(0,Math.min(100,Number(rateMatch[1]))):25;
-    const isIncrease=/increase|tip|rises/i.test(prompt); const isWhole=/what number|original price|full price/i.test(prompt);
-    const wantsFinal=/final|sale price|total after|new value/i.test(prompt);
-    const focus=wantsFinal?'remain':isWhole?'whole':'change';
-    const cells=Array.from({length:100},(_,i)=>`<span class="pct-cell ${i<rate?'pct-change':'pct-keep'}" aria-hidden="true"></span>`).join('');
-    if(isIncrease){
-      const extra=Math.min(40,Math.max(10,rate));
-      const extraCells=Array.from({length:extra},()=>'<span class="pct-extra" aria-hidden="true"></span>').join('');
-      return `<div class="percent-lab" data-focus="increase"><div class="percent-grid" aria-label="100 percent original amount">${cells}</div><div class="percent-extra-grid" style="--extra-cols:${Math.min(10,extra)}">${extraCells}</div><div class="percent-equation">100% original <b>+</b> ${rate}% increase = <b>${100+rate}% total</b></div><div class="percent-tools"><button type="button" data-percent-focus="whole">Show original 100%</button><button type="button" data-percent-focus="increase">Show +${rate}%</button><button type="button" data-percent-focus="total">Show final ${100+rate}%</button></div><div class="visual-caption" id="percentCaption">For an increase, keep the original 100% and add the extra percent.</div></div>`;
-    }
-    return `<div class="percent-lab" data-focus="${focus}"><div class="percent-grid" aria-label="100-block percent model">${cells}</div><div class="percent-key"><span><i class="key-change"></i>${rate}% changed</span><span><i class="key-keep"></i>${100-rate}% remains</span></div><div class="percent-tools"><button type="button" data-percent-focus="change">Show ${rate}% part</button><button type="button" data-percent-focus="remain">Show ${100-rate}% left</button><button type="button" data-percent-focus="whole">Show whole 100%</button></div><div class="visual-caption" id="percentCaption">${isWhole?'You know a part and its rate; work backward to the whole 100%.':wantsFinal?`The final amount is the ${100-rate}% that remains.`:`The percent amount is the ${rate}% changed section.`}</div></div>`;
   }
 
   function parseLinearTileExpr(expr){
@@ -356,7 +377,7 @@
   }
 
   function mathLabControls(){
-    if(!['teach','guided'].includes(currentStage) || !currentProblem.steps?.length || stepIndex>=currentProblem.steps.length)return '';
+    if(currentStage!=='teach' || !currentProblem.steps?.length || stepIndex>=currentProblem.steps.length)return '';
     const correct=currentProblem.steps[stepIndex].options[currentProblem.steps[stepIndex].correct];
     return `<div class="math-lab-controls"><div><b>🧪 Balance Lab</b><small>Experiment before answering.</small></div><button type="button" data-lab="one">Try it on one side</button><button type="button" class="lab-good" data-lab="both">Preview on BOTH sides</button><div class="lab-action">Move to test: <b>${escapeHtml(correct)}</b></div></div>`;
   }
@@ -387,15 +408,161 @@
     }));
   }
 
-  function conversionVisual(){
-    const p=currentProblem.prompt; let from='starting unit',to='target unit',factor='conversion factor';
-    const m=p.match(/Convert ([\d.]+) ([A-Za-z]+) to ([A-Za-z]+)/i); if(m){from=`${m[1]} ${m[2]}`;to=m[3]}
-    const map={conv_ft_in:'12',conv_hr_min:'60',conv_lb_oz:'16',conv_metric:'100',conv_yd_in:'3 then 12',conv_minutes_clock:'groups of 60'}; factor=map[currentTemplateKind]||'unit relationship';
-    return `<div class="conversion-stage"><div class="unit-card"><div><b>${escapeHtml(from)}</b><small>START</small></div></div><div class="unit-arrow">→<small>${escapeHtml(factor)}</small></div><div class="unit-card target"><div><b>${escapeHtml(to)}</b><small>TARGET</small></div></div></div><div class="visual-caption">Predict before calculating: should the number get larger or smaller?</div>`;
+  /* ---------- Workshop link (any problem with an equation) ---------- */
+  function workshopButton(){
+    const eq=problemEquation(currentProblem);if(!eq)return '';
+    return `<div class="workshop-link"><button type="button" class="secondary" id="openWorkshop">🛠️ Work it step-by-step in the Equation Workshop</button></div>`;
+  }
+  function bindWorkshopButton(){$('#openWorkshop')?.addEventListener('click',()=>openWorkshop(problemEquation(currentProblem)))}
+
+  /* ---------- ACROSS THE = SIGN: Move Animator ---------- */
+  function moveVisual(){
+    const mv=currentProblem.moves[Math.min(stepIndex,currentProblem.moves.length-1)];
+    const tok=(arr,side)=>arr.map((t,i)=>`<span class="mtok ${side===mv.from&&i===mv.mover?'mover':''} ${mv.tight&&side===mv.from&&i===mv.mover?'tight':''}" data-i="${i}">${escapeHtml(t)}</span>`).join('');
+    const done=stepIndex>=currentProblem.steps.length;
+    return `<div class="move-lab"><div class="move-head"><div><b>↔️ Move Animator</b><small>Watch what “moving it across the = sign” really does.</small></div><span class="drag-badge">STEP ${Math.min(stepIndex+1,currentProblem.moves.length)} OF ${currentProblem.moves.length}</span></div>
+      <div class="move-eq" id="moveEq"><div class="move-side l" data-side="left">${tok(mv.left,'left')}</div><div class="move-equals">=</div><div class="move-side r" data-side="right">${tok(mv.right,'right')}</div></div>
+      <div class="move-explain" id="moveExplain" hidden>
+        <div class="move-row"><span class="tag">REALLY</span><span>${escapeHtml(mv.both)}</span><small>same move on BOTH sides</small></div>
+        <div class="move-row"><span class="tag">SO</span><span>${escapeHtml(mv.result)}</span>${done||stepIndex>0?`<small>→ ${escapeHtml(mv.final)}</small>`:''}</div>
+      </div>
+      <div class="move-actions"><button type="button" class="primary" id="movePlay">▶ Show the move</button>${workshopButton().replace('workshop-link','workshop-link inline')}</div>
+      <div class="visual-caption" id="moveCaption">The highlighted term is the one that “moves”. Predict: what will it turn into on the other side?</div></div>`;
+  }
+  function bindMoveVisual(){
+    bindWorkshopButton();
+    const btn=$('#movePlay');if(!btn)return;
+    btn.addEventListener('click',()=>{
+      const mv=currentProblem.moves[Math.min(stepIndex,currentProblem.moves.length-1)];
+      const eqEl=$('#moveEq');const fromSide=eqEl.querySelector(`[data-side="${mv.from}"]`),toSide=eqEl.querySelector(`[data-side="${mv.from==='left'?'right':'left'}"]`);
+      const mover=fromSide.querySelector('.mover');if(!mover)return;
+      eqEl.querySelectorAll('.landed').forEach(n=>n.remove());mover.classList.remove('gone','ghost');$('#moveExplain').hidden=true;
+      const land=document.createElement('span');land.className='mtok landed';land.textContent=mv.landAs;land.style.opacity='0';toSide.appendChild(land);
+      const a=mover.getBoundingClientRect(),b=land.getBoundingClientRect();
+      const finish=()=>{land.style.opacity='';land.classList.add('pop');mover.classList.add('gone');$('#moveExplain').hidden=false;
+        $('#moveCaption').innerHTML=`<b>${escapeHtml(mover.textContent.trim())}</b> crossed the = and became <b>${escapeHtml(mv.landAs)}</b>. It's really the same move done to BOTH sides — look at the REALLY line.`;sfx('good');btn.textContent='↺ Replay the move'};
+      const reduce=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      if(reduce||!document.body.animate){finish();return}
+      const fly=document.createElement('span');fly.className='mtok flying';fly.textContent=mover.textContent;
+      Object.assign(fly.style,{left:`${a.left}px`,top:`${a.top}px`});document.body.appendChild(fly);mover.classList.add('ghost');
+      const dx=b.left-a.left,dy=b.top-a.top;sfx('whoosh');
+      fly.animate([{transform:'translate(0,0) rotateY(0)'},{transform:`translate(${dx*.5}px,${dy*.5-70}px) rotateY(90deg)`,offset:.5},{transform:`translate(${dx}px,${dy}px) rotateY(0)`}],{duration:1100,easing:'ease-in-out'});
+      setTimeout(()=>{fly.textContent=mv.landAs;fly.classList.add('flipped')},550);
+      setTimeout(()=>{fly.remove();finish()},1100);
+    });
+    if(currentStage==='teach'&&stepIndex===0)setTimeout(()=>{if(document.contains(btn))btn.classList.add('pulse')},400);
   }
 
+  /* ---------- PERCENTS: tape diagram ---------- */
+  function percentTape(){
+    const {mode,rate,whole,part}=currentProblem.pct;const money=currentProblem.unit==='$'||/\$/.test(currentProblem.prompt);
+    const v=n=>n==null?'?':currentProblem.unit==='%'&&!money?`${fmt(n)}%`:`${money?'$':''}${fmt(n)}`;
+    const reasoningDone=stepIndex>=currentProblem.steps.length||currentStage==='teach';
+    const total=Math.max(100,mode==='increase'||mode==='reverseUp'||mode==='change'?100+rate:100);
+    const w=x=>`${(x/total)*100}%`;
+    let segs='',label='',formula='',caption='';
+    if(mode==='of'||mode==='decrease'){
+      const lost=mode==='decrease';
+      segs=`<span class="seg keep ${lost?'':'dim'}" style="width:${w(100-rate)}"><b>${100-rate}%</b><small>${lost?'what is left':'rest'}</small></span><span class="seg piece ${lost?'away':''}" style="width:${w(rate)}"><b>${rate}%</b><small>${lost?'taken off':'the part'}</small></span>`;
+      label=`Whole = 100% = <b>${v(whole)}</b>`;
+      formula=lost?`${v(whole)} × (1 − ${fmt(rate/100)}) = ${v(whole)} × <mark>${fmt(1-rate/100)}</mark>`:`${v(whole)} × <mark>${fmt(rate/100)}</mark>`;
+      caption=lost?`Asked for what is LEFT after taking ${rate}% away → use 1 − rate.`:`Asked for the ${rate}% PIECE itself → use the rate.`;
+    } else if(mode==='increase'){
+      segs=`<span class="seg keep" style="width:${w(100)}"><b>100%</b><small>original</small></span><span class="seg add" style="width:${w(rate)}"><b>+${rate}%</b><small>added</small></span>`;
+      label=`Original = 100% = <b>${v(whole)}</b> · New total = <b>${100+rate}%</b>`;
+      formula=`${v(whole)} × (1 + ${fmt(rate/100)}) = ${v(whole)} × <mark>${fmt(1+rate/100)}</mark>`;
+      caption='Asked for the TOTAL after an increase → keep 100% and add more → use 1 + rate.';
+    } else if(mode==='whole'){
+      segs=`<span class="seg piece" style="width:${w(rate)}"><b>${rate}%</b><small>${v(part)}</small></span><span class="seg unknown" style="width:${w(100-rate)}"><b>${100-rate}%</b><small>?</small></span>`;
+      label=`Whole = 100% = <b>?</b>`;
+      formula=`${v(part)} <mark>÷ ${fmt(rate/100)}</mark>`;
+      caption=`You know a PIECE and want the WHOLE → work backward → divide.`;
+    } else if(mode==='reverse'){
+      segs=`<span class="seg keep" style="width:${w(100-rate)}"><b>${100-rate}%</b><small>${v(part)} paid</small></span><span class="seg piece away" style="width:${w(rate)}"><b>${rate}%</b><small>taken off</small></span>`;
+      label=`Original = 100% = <b>?</b>`;
+      formula=`${v(part)} <mark>÷ ${fmt(1-rate/100)}</mark>`;
+      caption=`${v(part)} is the ${100-rate}% that was LEFT. Work backward to 100% → divide by ${fmt(1-rate/100)}.`;
+    } else if(mode==='reverseUp'){
+      segs=`<span class="seg unknown" style="width:${w(100)}"><b>100%</b><small>before = ?</small></span><span class="seg add" style="width:${w(rate)}"><b>+${rate}%</b></span>`;
+      label=`After = ${100+rate}% = <b>${v(part)}</b>`;
+      formula=`${v(part)} <mark>÷ ${fmt(1+rate/100)}</mark>`;
+      caption=`${v(part)} is ${100+rate}% of the original. Work backward → divide by ${fmt(1+rate/100)}.`;
+    } else if(mode==='change'){
+      segs=`<span class="seg keep" style="width:${w(100)}"><b>${v(whole)}</b><small>original = 100%</small></span><span class="seg add" style="width:${w(rate)}"><b>+?%</b><small>change</small></span>`;
+      label=`New value = <b>${v(part)}</b>`;
+      formula=`(${v(part)} − ${v(whole)}) <mark>÷ ${v(whole)}</mark> × 100`;
+      caption='Percent change compares the CHANGE to the ORIGINAL.';
+    }
+    return `<div class="tape-lab"><div class="tape-head"><b>📊 Percent bar</b><small>${label}</small></div>
+      <div class="tape"><div class="tape-whole-mark" style="width:${w(100)}"><span>100%</span></div><div class="tape-bar">${segs}</div></div>
+      <div class="tape-decide">
+        <div class="decide-q">🧭 Ask yourself:</div>
+        <div class="decide-chips"><span class="${['of','decrease','increase','change'].includes(mode)?'on':''}">I know the ORIGINAL → <b>multiply</b></span><span class="${['whole','reverse','reverseUp'].includes(mode)?'on':''}">I need the ORIGINAL → <b>divide</b></span></div>
+        <div class="decide-chips"><span>the piece → <b>rate</b></span><span>what's left → <b>1 − rate</b></span><span>new total → <b>1 + rate</b></span></div>
+      </div>
+      ${reasoningDone?`<div class="tape-formula">🧮 ${formula}</div>`:`<button type="button" class="secondary tape-peek" id="tapePeek">👀 Animate the bar</button>`}
+      <div class="visual-caption" id="tapeCaption">${reasoningDone?caption:'Look at the bar: is the answer the colored piece, what is left, the bigger total, or the whole?'}</div></div>`;
+  }
+  function bindPercentTape(){
+    const lab=$('#visualZone .tape-lab');if(!lab)return;
+    const replay=()=>{lab.classList.remove('play');void lab.offsetWidth;lab.classList.add('play')};
+    replay();
+    $('#tapePeek')?.addEventListener('click',()=>{replay();sfx('whoosh')});
+    // Decision chips are only highlighted after the reasoning is done (so they don't give it away).
+    if(!(stepIndex>=currentProblem.steps.length||currentStage==='teach'))lab.querySelectorAll('.decide-chips .on').forEach(c=>c.classList.remove('on'));
+  }
+
+  /* ---------- CONVERSIONS: split/group bars + unit fractions ---------- */
+  function conversionVisual(){
+    const c=currentProblem.conv;const bigU=c.big?c.from:c.to,smallU=c.big?c.to:c.from;
+    const bigCount=c.big?c.v:c.v/c.k;const shown=Math.min(6,Math.ceil(bigCount-1e-9));
+    const segs=Array.from({length:shown},(_,i)=>{const frac=Math.min(1,bigCount-i);return `<span class="cseg" style="--w:${frac};--k:${Math.min(c.k,60)}"><em>1 ${escapeHtml(bigU)}</em></span>`}).join('');
+    const more=bigCount>6?`<span class="cmore">+ more…</span>`:'';
+    const good=c.big?`(${c.k} ${smallU} / 1 ${bigU})`:`(1 ${bigU} / ${c.k} ${smallU})`,bad=c.big?`(1 ${bigU} / ${c.k} ${smallU})`:`(${c.k} ${smallU} / 1 ${bigU})`;
+    const opts=Math.random()<.5?[good,bad]:[bad,good];
+    return `<div class="conv-lab"><div class="conv-fact">📐 <b>1 ${escapeHtml(bigU)} = ${c.k} ${escapeHtml(smallU)}</b>${c.chain?` <small>(${escapeHtml(c.chain)})</small>`:''}</div>
+      <div class="conv-bars ${c.big?'':'split'}" id="convBars">${segs}${more}</div>
+      <div class="conv-legend"><span>${fmt(c.v)} ${escapeHtml(c.from)}</span><span class="arrow">→</span><span>? ${escapeHtml(c.to)}</span></div>
+      <button type="button" class="secondary" id="convAnimate">${c.big?`▶ Split each ${escapeHtml(bigU)} into ${escapeHtml(smallU)}`:`▶ Group the ${escapeHtml(smallU)} into ${escapeHtml(bigU)}`}</button>
+      <div class="conv-fraction"><div class="conv-q">🧪 Unit-fraction test: which fraction cancels <b>${escapeHtml(c.from)}</b>?</div>
+        <div class="conv-opts">${opts.map(o=>`<button type="button" class="conv-opt" data-good="${o===good}">${fmt(c.v)} ${escapeHtml(c.from)} × ${escapeHtml(o)}</button>`).join('')}</div>
+        <div class="conv-result" id="convResult"></div></div>
+      <div class="visual-caption" id="convCaption">${c.big?`Smaller units → you need MORE of them.`:`Bigger units → you need FEWER of them.`} Predict before you calculate!</div></div>`;
+  }
+  function bindConversionVisual(){
+    const c=currentProblem.conv;const bars=$('#convBars');
+    $('#convAnimate')?.addEventListener('click',()=>{bars.classList.toggle('split');bars.classList.remove('anim');void bars.offsetWidth;bars.classList.add('anim');sfx('whoosh');
+      $('#convCaption').textContent=bars.classList.contains('split')?`Each 1 ${c.big?c.from:c.to} is ${c.k} little ${c.big?c.to:c.from}. Same length — more, smaller pieces.`:`Grouped back into ${c.big?c.from:c.to}: fewer, bigger pieces.`});
+    $$('.conv-opt').forEach(b=>b.addEventListener('click',()=>{
+      const good=b.dataset.good==='true';$$('.conv-opt').forEach(x=>x.classList.remove('good','bad'));b.classList.add(good?'good':'bad');
+      const bigU=c.big?c.from:c.to,smallU=c.big?c.to:c.from;
+      $('#convResult').innerHTML=good
+        ?`<span class="cancel-u">${escapeHtml(c.from)}</span> on top and <span class="cancel-u">${escapeHtml(c.from)}</span> on the bottom cancel ✓ — only <b>${escapeHtml(c.to)}</b> is left. The ${c.k} is on the ${c.big?'TOP → <b>multiply</b>':'BOTTOM → <b>divide</b>'} by ${c.k}.`
+        :`✗ That leaves ${escapeHtml(c.from)} × ${escapeHtml(c.from)} — nothing cancels! Flip the fraction so <b>${escapeHtml(c.from)}</b> is on the bottom.`;
+      sfx(good?'good':'bad');
+    }));
+  }
+
+  /* ---------- WORD PROBLEMS: highlighter ---------- */
+  const KEY_WORDS=/\b(each|per|off|more than|less than|total|remain(?:s|ing)?|left|twice|half|sum|split|equally|already|goal|increases?|decreases?|rises?|original|after|before|tip|tax|discount|sale price|full price)\b/gi;
+  function highlightPrompt(text){
+    return String(text).split(/(?<=[.?!])\s+/).map(sentence=>{
+      let h=escapeHtml(sentence).replace(KEY_WORDS,'<mark class="hl-key">$1</mark>').replace(/(?<![#\w;])(\$?\d+(?:\.\d+)?%?)/g,'<mark class="hl-num">$1</mark>');
+      return /\?\s*$/.test(sentence)?`<span class="hl-q">${h}</span>`:h;
+    }).join(' ');
+  }
   function wordVisual(){
-    return `<div class="story-stage"><div class="story-chip"><span>❓</span><b>UNKNOWN</b><small>What are we finding?</small></div><div class="story-chip"><span>🔗</span><b>RELATIONSHIP</b><small>How are the quantities connected?</small></div><div class="story-chip"><span>🏷️</span><b>UNITS</b><small>What should the answer mean?</small></div></div>`;
+    return `<div class="story-stage"><div class="story-chip"><span>🖍️</span><b>NUMBERS</b><small>Circle every number and its unit.</small></div><div class="story-chip"><span>❓</span><b>QUESTION</b><small>Underline what they actually want.</small></div><div class="story-chip"><span>🔗</span><b>RELATIONSHIP</b><small>Clue words tell you +, −, ×, ÷.</small></div></div>
+      <div class="hl-actions"><button type="button" class="secondary" id="hlBtn">🖍️ Highlight the clues</button>${workshopButton().replace('workshop-link','workshop-link inline')}</div>
+      <div class="hl-legend" id="hlLegend" hidden><span><mark class="hl-num">12</mark> numbers</span><span><mark class="hl-key">each</mark> clue words</span><span><span class="hl-q">the question</span></span></div>`;
+  }
+  function bindWordVisual(){
+    bindWorkshopButton();
+    const btn=$('#hlBtn'),pr=$('#problemCard .problem-prompt');if(!btn||!pr)return;
+    const plain=escapeHtml(currentProblem.prompt);let on=false;
+    const apply=()=>{on=!on;pr.innerHTML=on?highlightPrompt(currentProblem.prompt):plain;pr.classList.toggle('highlighted',on);$('#hlLegend').hidden=!on;btn.textContent=on?'🧽 Clear highlights':'🖍️ Highlight the clues';if(on)sfx('tap')};
+    btn.addEventListener('click',apply);
+    if(currentStage==='teach')apply();
   }
 
   function renderInteraction(){
@@ -411,11 +578,11 @@
   function chooseReason(idx,step,button){
     if(button.disabled)return; const opts=$$('.option'); const ok=idx===step.correct;
     if(!reasonAttempted){progress.skills[currentSkill].reasonTotal++;reasonAttempted=true;if(ok)progress.skills[currentSkill].reasonCorrect++;}
-    if(!ok){reasonMiss=true;recordMiss();progress.streak=0;button.disabled=true;button.classList.add('wrong');const vz=$('#visualZone');if(currentSkill==='equality'||currentSkill==='algebra'){const bal=vz?.querySelector('.balance-stage');if(bal)bal.classList.add('unbalanced')}else if(vz){vz.classList.remove('nudge');void vz.offsetWidth;vz.classList.add('nudge')}$('#feedback').innerHTML=`<div class="feedback bad"><b>Almost — use that clue.</b> ${escapeHtml(shortHintForStep(step))}</div>`;save();return;}
+    if(!ok){sfx('bad');reasonMiss=true;recordMiss();progress.streak=0;button.disabled=true;button.classList.add('wrong');const vz=$('#visualZone');if(isEquationSkill(currentSkill)){const bal=vz?.querySelector('.balance-stage');if(bal)bal.classList.add('unbalanced')}else if(vz){vz.classList.remove('nudge');void vz.offsetWidth;vz.classList.add('nudge')}$('#feedback').innerHTML=`<div class="feedback bad"><b>Almost — use that clue.</b> ${escapeHtml(shortHintForStep(step))}</div>`;save();return;}
     const bal=$('#visualZone')?.querySelector('.balance-stage');if(bal)bal.classList.remove('unbalanced');
     if(reasonAttempted && !reasonMiss && !button.classList.contains('wrong')){} // first-try correctness already counted above
     opts.forEach((b,i)=>{b.disabled=true;if(i===step.correct)b.classList.add('correct')});
-    const gain=reasonMiss?1:2;progress.xp+=gain;progress.streak++;save();
+    const gain=reasonMiss?1:2;progress.xp+=gain;progress.streak++;save();sfx('good');
     $('#feedback').innerHTML=`<div class="feedback good"><span class="big-feedback">✓ Nice move.</span> ${escapeHtml(step.why)}</div><div class="step-explain">⚖️ <span><b>Why it works:</b> ${escapeHtml(step.why)}</span></div><div class="next-row"><span class="xp-pop">+${gain} XP${reasonMiss?' recovery':''}</span><button class="primary" id="continueReason">Apply this move →</button></div>`;
     $('#continueReason').addEventListener('click',applyReasonMove);
   }
@@ -425,7 +592,7 @@
     const z=$('#visualZone');
     if(currentProblem.boss){
       z?.querySelector('.boss-stage')?.classList.add('boss-clear');
-    } else if(currentSkill==='equality'||currentSkill==='algebra'){
+    } else if(isEquationSkill(currentSkill)){
       z?.querySelector('.tile-lab')?.classList.add('apply-move');
       z?.querySelector('.balance-stage')?.classList.add('apply-move');
     }
@@ -439,6 +606,13 @@
     return 'Look for the choice that keeps the mathematical relationship true.';
   }
 
+  // Accepts "2 h 15 min", "2:15", "2hr15", "2 15", or "2.25" (hours) for a time answer.
+  function matchesMinutes(raw,mins){
+    const t=String(raw).toLowerCase();const nums=(t.match(/\d+(?:\.\d+)?/g)||[]).map(Number);
+    if(!nums.length)return false;
+    if(nums.length===1)return /m/.test(t)&&!/h/.test(t)?nums[0]===mins:Math.abs(nums[0]*60-mins)<.5;
+    return nums[0]*60+nums[1]===mins;
+  }
   function normalize(s){return String(s).trim().toLowerCase().replace(/\s+/g,' ').replace(/\$/g,'').replace(/%/g,'').replace(/,/g,'');}
   function renderAnswer(){
     const p=currentProblem; const label=p.answerText?'Enter your answer (hours and minutes):':`Finish the quest${p.unit?` — answer in ${p.unit}`:''}:`;
@@ -447,7 +621,8 @@
   }
   function showHint(){
     hintLevel++; const p=currentProblem; let msg=p.hint||'Use the relationship you identified in the reasoning step.';
-    if(hintLevel>=2){ if(currentSkill==='equality'||currentSkill==='algebra'){const e=equationState();msg=`Write the current balanced equation: ${e.left} = ${e.right}. Now undo the remaining operation on both sides.`}
+    if(hintLevel>=2){ if(currentSkill==='moving')msg='Name what is attached to x, flip it (+ ↔ −, × ↔ ÷), and do it to BOTH sides. Then check by plugging in.';
+      else if(isEquationSkill(currentSkill)){const e=equationState();msg=`Write the current balanced equation: ${e.left} = ${e.right}. Now undo the remaining operation on both sides.`}
       else if(currentSkill==='percents')msg=`Decide whether you need rate, 1 − rate, 1 + rate, or part ÷ rate before entering numbers.`;
       else if(currentSkill==='conversions')msg='Write the unit relationship, then choose the operation that makes your predicted size happen.';
       else msg='Write a one-line equation or relationship using the known quantities and the unknown.';
@@ -457,12 +632,12 @@
 
   function checkAnswer(){
     if(answered)return;const p=currentProblem,raw=$('#answerInput').value;if(!raw.trim())return;
-    let ok=false;if(p.answerText)ok=(p.answerAlt||[p.answerText]).some(v=>normalize(v)===normalize(raw));else{const v=Number(normalize(raw));ok=Number.isFinite(v)&&Math.abs(v-Number(p.answer))<.011}
+    let ok=false;if(p.answerMinutes!==undefined)ok=matchesMinutes(raw,p.answerMinutes);else if(p.answerText)ok=(p.answerAlt||[p.answerText]).some(v=>normalize(v)===normalize(raw));else{const v=Number(normalize(raw));ok=Number.isFinite(v)&&Math.abs(v-Number(p.answer))<.011}
     answerAttempts++;
     if(answerAttempts===1){progress.skills[currentSkill].answerTotal++;if(ok)progress.skills[currentSkill].answerCorrect++;else recordMiss();}
-    if(!ok && answerAttempts<2){progress.streak=0;save();$('#feedback').innerHTML=`<div class="feedback bad"><b>Good try — one correction round.</b> ${escapeHtml(p.hint||'Re-check the relationship and your arithmetic.')}</div>`;$('#answerInput').select();showHint();return;}
+    if(!ok && answerAttempts<2){progress.streak=0;save();sfx('bad');$('#feedback').innerHTML=`<div class="feedback bad"><b>Good try — one correction round.</b> ${escapeHtml(p.hint||'Re-check the relationship and your arithmetic.')}</div>`;$('#answerInput').select();showHint();return;}
     progress.skills[currentSkill].completed++;answered=true;let gain=0;
-    if(ok){gain=(currentProblem.boss?15:currentStage==='challenge'?8:currentStage==='independent'?6:4);if(answerAttempts>1)gain=Math.max(2,Math.floor(gain/2));progress.xp+=gain;progress.streak++;if(answerAttempts===1&&!reasonMiss)rewardCorrection();const sp=progress.skills[currentSkill];const before=sp.stageWins[currentStage]||0;sp.stageWins[currentStage]=before+1;if(before<2&&sp.stageWins[currentStage]>=2){const ni=stageOrder.indexOf(currentStage)+1;if(ni<stageOrder.length)setTimeout(()=>toast(`${stageOrder[ni][0].toUpperCase()+stageOrder[ni].slice(1)} unlocked!`),500)}celebrate();}
+    if(ok){gain=(currentProblem.boss?15:currentStage==='challenge'?8:currentStage==='independent'?6:4);if(answerAttempts>1)gain=Math.max(2,Math.floor(gain/2));progress.xp+=gain;progress.streak++;if(answerAttempts===1&&!reasonMiss)rewardCorrection();const sp=progress.skills[currentSkill];const before=sp.stageWins[currentStage]||0;sp.stageWins[currentStage]=before+1;if(before<2&&sp.stageWins[currentStage]>=2){const ni=stageOrder.indexOf(currentStage)+1;if(ni<stageOrder.length)setTimeout(()=>{toast(`${stageOrder[ni][0].toUpperCase()+stageOrder[ni].slice(1)} unlocked!`);sfx('unlock')},500)}celebrate();sfx('win');}
     else progress.streak=0;save();updateMastery();renderStageLocks();
     const correct=p.answerText?p.answerText:`${p.unit==='$'?'$':''}${fmt(Number(p.answer))}${p.unit&&p.unit!=='$'?` ${p.unit}`:''}`;
     $('#feedback').innerHTML=ok?`<div class="feedback good"><span class="big-feedback">★ Quest cleared!</span> ${answerAttempts>1?'Nice correction.':'Your reasoning and calculation matched.'}</div><div class="next-row"><span class="xp-pop">+${gain} XP</span><button class="primary" id="nextProblem">Next quest →</button></div>`:`<div class="feedback bad"><b>Let’s lock in the correction.</b> The answer is <b>${escapeHtml(correct)}</b>. ${escapeHtml(p.hint||'')}</div><div class="next-row"><span>Review the setup before moving on.</span><button class="primary" id="nextProblem">Next quest →</button></div>`;
@@ -515,6 +690,19 @@
   $$('.stage-tabs button').forEach(b=>b.addEventListener('click',()=>{const st=b.dataset.stage;if(!stageUnlocked(currentSkill,st)){const idx=stageOrder.indexOf(st),prev=stageOrder[idx-1];toast(`Clear 2 ${prev} quests to unlock this level.`);return}currentStage=st;questionCount=0;renderStage()}));
   $('#parentBtn').addEventListener('click',renderParent);$('#bossBtn').addEventListener('click',openBossQuest);$('#quickMixBtn').addEventListener('click',openSmartReview);$('#brandHome').addEventListener('click',()=>{renderHome();show('#homeView')});
   $('#resetProgress').addEventListener('click',()=>{if(confirm('Reset all saved Math Quest progress on this device?')){progress=defaultProgress();save();renderParent();renderHome()}});
+  function goHome(){renderHome();show('#homeView')}
+  function openWorkshop(eq){
+    const fromQuest=!!eq&&$('#learnView').classList.contains('active');
+    window.MathWorkshop.open(eq,fromQuest?()=>show('#learnView'):goHome,fromQuest?'← Back to my quest':'← Quest map');
+    show('#workshopView');
+  }
+  window.MQ={toast,celebrate,sfx,home:goHome,addXP(n){progress.xp+=n;save()}};
+  $('#workshopBtn').addEventListener('click',()=>openWorkshop());
+  $('#blitzBtn').addEventListener('click',()=>{window.MathBlitz.open();show('#blitzView')});
+  $('#muteBtn').addEventListener('click',()=>{muted=!muted;try{localStorage.setItem('mathQuestMuted',muted?'1':'0')}catch{}renderMute();if(!muted)sfx('good')});
+  $('#conceptGrid').innerHTML=Object.entries(BANK).map(([k,v])=>`<button type="button" class="concept-chip" data-concept="${k}" style="--world-color:${worldStyle[k][1]};--world-bg:${worldStyle[k][0]}"><span>${v.icon}</span>${escapeHtml(v.title)}</button>`).join('');
+  $$('[data-concept]').forEach(b=>b.addEventListener('click',()=>window.MathExplainers.open(b.dataset.concept,BANK[b.dataset.concept].title)));
+  window.MathExplainers.init();renderMute();
   initScratchPad();renderHome();
   if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 })();
