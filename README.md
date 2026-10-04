@@ -1,114 +1,86 @@
-# Math Quest - Reasoning Builder
+# Math Quest
 
-A no-framework static PWA for grades 7-8 math reasoning. It can be hosted entirely on GitHub Pages.
+An interactive, mobile-first math practice app for 8th grade. It's built around **doing** the math (tapping, dragging, building) instead of picking A/B/C/D or guessing numbers.
+
+**Live site:** https://kjljon.github.io/Math-study-guide/
 
 ## What it teaches
 
-- Equality and why legal equation steps must preserve both sides
-- Moving terms across the = sign (and why + flips to −, × flips to ÷)
-- Basic single-variable algebra
-- Unit conversions and the multiply-vs-divide decision
-- Percents: amount vs final value vs original whole, including `1 - rate` and `1 + rate`
-- Word-problem translation and equation selection
+| World | What she does |
+| --- | --- |
+| ⚖️ **Balance Basics** | Mystery bags and blocks on a scale. She predicts whether a move keeps it balanced, then watches it tip or stay level. |
+| ↔️ **Across the = Sign** | She taps or **drags** the term stuck to x across the = sign, picks what it turns into, and watches the same move happen to **both sides**. A "shortcut" replay shows that "moving it across" *is* doing the opposite to both sides. |
+| 🧩 **Solving Equations** | Two-step equations, x on both sides, parentheses (divide first or distribute), negatives. |
+| 📏 **Unit Conversions** | Predict more or fewer, watch the bar split or group, then flip the unit fraction until the old unit cancels. The fraction shows whether to × or ÷. |
+| % **Percents** | Drag a percent bar, tap the part the question asks for, and tap where the given amount goes. Knowing the original means multiply. Working backward becomes `0.75 × ? = 60`, so she sees *why* it's divide. |
+| 💬 **Word Problems** | Tap the numbers, tap the question, choose what x means, **build the equation from tiles**, solve it, then say what the answer means. Some stories include a number she doesn't need. |
 
-Each skill uses four modes: **Teach → Guided → Independent → Challenge**. Problems can have multiple reasoning checkpoints before the final calculation. The app separately tracks reasoning accuracy and final-answer accuracy.
+### How the teaching works
 
-### New in version 5
+- **Each world has 4 levels:** Learn (a worked example first, then guided practice with narration), Practice (opens with a faded example, glow after a miss), Solo (she does the arithmetic on a keypad), and Boss (harder problems, no help).
+- **No guess-and-check for equations.** She never types x. She makes each move, and moves that aren't helpful are explained instead of applied, e.g. "Not yet! The +6 was added last, so it comes off first."
+- **Every wrong choice has a specific explanation.** For example, "3x means 3 TIMES x, so it crosses as ÷ 3, not − 3."
+- **Every solution is checked** by plugging the answer back into the original equation.
+- **Rounds of 5 problems** earn stars and unlock the next level. Missed problem types come back more often, and Smart Review drills them.
+- **Extras:** 🛠️ *Solve MY equation* (type any homework equation), ⚡ Lightning Round (60-second game), 👑 Boss Mix, and 🎬 animated concept lessons with read-aloud.
+- **Parent view** shows first-try accuracy per world and which *step* causes slips (choosing the operation vs. arithmetic vs. multiply-or-divide…).
 
-- **↔️ Across the = Sign world**: a whole world on what "move it to the other side" *really* means. A **Move Animator** flies the term across the = sign, flips its operation (+↔−, ×↔÷), and shows the same step done to both sides. It also has "spot the glitch" problems built on the classic mistakes (3x = 12 → x = 12 − 3, forgetting to flip a sign, dividing only part of a side).
-- **🛠️ Equation Workshop**: type *any* linear equation, including homework with parentheses, fractions, or x on both sides. The learner picks each operation, and the workshop applies it to **both sides** on an animated balance scale. It writes the work in notebook lines, crosses out zero pairs, and shows the "moving across" shortcut for each step. Every move is legal, so it explains when a move was *legal but unhelpful*. It finishes with a substitution check. Quest equations open here with one tap.
-- **🎬 Concept lessons**: short animated lessons for every world (balance, moving terms, unwrapping, unit fractions, percent bars, word traps), with optional read-aloud.
-- **⚡ Lightning Round**: a 60-second game that drills the split-second decisions (which inverse operation, rate vs 1 − rate vs 1 + rate, × vs ÷ for units, word traps). It has combos and a personal best.
-- **Percent bar (tape diagram)** with a "multiply or divide?" decision guide, **unit-split bars** with a unit-fraction tester for conversions, and a **🖍️ clue highlighter** for word problems.
-- New problem families: choosing the one-step percent multiplier, discount-then-tax, unit-fraction picking, rate conversions, and translating words to equations ("5 less than n").
-- Answer choices are now shuffled, so the right answer isn't always "A". Plus sound effects (with a mute button) and more forgiving time answers ("2:15", "2 h 15 min").
+## Why it teaches this way (research behind the design)
 
-Version 4 adds an unlockable level path, adaptive Smart Review, a drag/tap algebra manipulative lab, and an on-screen scratch pad. On supported linear equations, learners can drag or tap x/constant tiles to apply the inverse operation to **both** sides, undo/reset their tile moves, and split a pure multiple such as `3x = 15` into equal groups. The site keeps the existing animated balance/equation visuals, interactive percent models, conversion bridges, mistake-spotting rounds, escalating hints, correction rounds, stars, XP, streaks, and multi-skill Boss Quests.
+The flow follows the U.S. Dept. of Education's What Works Clearinghouse practice guides for algebra and problem solving, plus well-replicated findings from cognitive science.
 
-## Live site
+| Proven practice | How Math Quest does it |
+| --- | --- |
+| **Worked examples, then practice** ("I do → we do → you do") | Every **Learn** round opens with *👀 Watch Ollie*: Ollie solves one step by step while she taps **Next** at her own pace. Then *✋ Your turn* on the same kind of problem. |
+| **Fading support** | **Practice** opens with a *faded example* (Ollie makes the first move, she finishes). Hints, glowing targets and narration step back level by level, until **Boss** has none. |
+| **Concrete → visual → abstract** | Mystery bags and blocks on a scale → a scale with expressions → equations alone. Percent bars and unit bars sit beside the symbols. |
+| **Use the structure of the math; avoid "magic tricks"** | "Moving across the =" is always shown as the opposite operation done to **both sides**, with zero pairs crossing out. Then a shortcut replay connects it to the trick. |
+| **Explanatory feedback right away** | Every wrong choice gets a reason ("3x means 3 TIMES x, so it crosses as ÷ 3"). Moves that aren't helpful are explained, not just marked wrong. |
+| **Learning from mistakes** | "Spot the glitch" problems show a common wrong solution to find and fix. |
+| **Self-explanation** | 🤔 Quick "why?" questions after problems ("Why do we do the same thing to both sides?"). |
+| **Check and reflect** | Every equation ends by plugging the answer back in. Word problems end with "what does the answer *mean*?" |
+| **Retrieval, spacing and mixing** | From Practice up, each round has a 🔁 *Quick review* from an earlier level or another world. Missed problem types come back more often, and Smart Review drills them. |
+| **Growth-mindset feedback** | Praise names the strategy and the effort ("You undid each step on BOTH sides!", "You stuck with it — that's how brains grow 🌱") rather than "you're smart". Mistakes get gentle wording plus a specific tip. |
+| **Motivation and engagement** | Sparkles and a cheer on every correct step, confetti on every solved problem, 🔥 streaks, stars, level unlocks with fireworks, and an optional name for Ollie to cheer by. |
 
-**https://kjljon.github.io/math-study-guide/**
+Sources: IES/WWC *Teaching Strategies for Improving Algebra Knowledge in Middle and High School Students* (2015); *Improving Mathematical Problem Solving in Grades 4 Through 8* (2012); *Organizing Instruction and Study to Improve Student Learning* (2007).
 
-The app is fully static and uses only relative paths, so it runs as-is from the
-`/math-study-guide/` sub-path on GitHub Pages (or any folder on any static host).
+## Hosting (GitHub Pages)
 
-### Turn on GitHub Pages (one time)
+The app is fully static with relative paths, so it works from `/Math-study-guide/` or any folder.
 
-1. On GitHub, open the repo's **Settings → Pages**.
-2. Under **Build and deployment → Source**, choose **Deploy from a branch**.
-3. Pick the branch that holds these files and the **`/ (root)`** folder, then **Save**.
-4. After a minute the site is live. On a phone, use **Add to Home screen** to install it like an app.
+1. Go to **Settings → Pages → Deploy from a branch**.
+2. Pick the branch and `/ (root)`, then Save.
 
-`.nojekyll` tells GitHub Pages to serve the files exactly as they are.
+`.nojekyll` makes Pages serve the files as-is. The service worker fetches the newest files first (falling back to the cache offline), so updates show up right away. On a phone, use **Add to Home screen** to install it like an app.
 
-## Run it locally
+Progress is saved in `localStorage` on that device only.
+
+## Run locally
 
 ```bash
-python3 -m http.server 8000
+python3 -m http.server 8000   # then open http://localhost:8000
 ```
-
-Then open `http://localhost:8000`.
-
-No database, server, npm install, or API key is required. Progress is stored in
-`localStorage`, so it stays on that browser/device.
-
-## Add more questions later
-
-Open `question-bank.js`. Each skill has template lists for `teach`, `guided`, `independent`, and `challenge`. Add an existing `kind` to a list to change the mix or frequency.
-
-Example:
-
-```js
-challenge: [
-  {kind:'pct_reverse_discount'},
-  {kind:'pct_change'},
-  {kind:'pct_change'} // appears more often because it is listed twice
-]
-```
-
-The actual randomized generators live in `generators.js`. To create a brand-new problem family, add a new generator there and then reference its `kind` from `question-bank.js`.
-
-## Design notes / evidence base
-
-The learning design follows current evidence-based guidance from the U.S. Department of Education's Institute of Education Sciences / What Works Clearinghouse, including:
-
-- using solved examples to analyze algebraic reasoning;
-- teaching students to use the structure of algebraic representations;
-- comparing/selecting strategies rather than memorizing unexplained symbol-moving rules;
-- monitoring and reflecting on the problem-solving process;
-- using visual/concrete representations and clear mathematical language;
-- spacing learning and interleaving worked examples with problem-solving practice.
-
-Useful official resources:
-
-- Teaching Strategies for Improving Algebra Knowledge in Middle and High School Students: https://ies.ed.gov/ncee/wwc/PracticeGuide/20
-- Toolkit to Support Evidence-Based Algebra Instruction in Middle and High School: https://ies.ed.gov/ncee/rel/algebra-middle-and-high-school/intro
-- Improving Mathematical Problem Solving in Grades 4 Through 8: https://ies.ed.gov/ncee/wwc/PracticeGuide/16
-- Organizing Instruction and Study to Improve Student Learning: https://ies.ed.gov/ncee/wwc/practiceguide/1
-
-## Version 4 progression and adaptive review
-
-- Each skill has an unlock path: **Teach → Guided → Independent → Challenge**. Two successful quests unlock the next level.
-- Mistakes are tracked by problem family on the local device. Smart Review prioritizes the strongest current misconception, and ordinary practice also periodically favors a missed family.
-- Focused questions are labeled so the learner and parent can see why that problem was selected.
-- The parent view shows the current adaptive focus alongside reasoning and answer accuracy.
-- Progress stays local in `localStorage`; no account or server is required.
 
 ## Files
 
-| File | What it does |
+| File | Purpose |
 | --- | --- |
-| `index.html` | Page layout |
-| `app.js` | Quest flow, progress, and the per-world visuals |
-| `question-bank.js` | Worlds, lessons, and which problem families appear at each level |
-| `generators.js` | Randomized problem generators |
-| `workshop.js` | Equation Workshop (exact-fraction step solver) |
-| `explainers.js` | Animated concept lessons |
-| `blitz.js` | Lightning Round game |
-| `sw.js` | Offline support (network-first, so new versions show up right away) |
+| `index.html` | Page shell (screens + lesson modal) |
+| `style.css` | Mobile-first styles and animations |
+| `js/core.js` | Exact fractions, equation parser, animation and sound helpers |
+| `js/store.js` | Progress (stars, levels, slips, daily streak, name) |
+| `js/praise.js` | Encouragement messages and "why?" self-explanation questions |
+| `js/problems.js` | Worlds, levels and **problem generators**, where you add more practice |
+| `js/act-solve.js` | Interactive equation solver (scale, tap/drag, both-sides animation, check) |
+| `js/act-percent.js` | Percent bar activity |
+| `js/act-convert.js` | Unit-fraction conversion activity |
+| `js/act-words.js` | Word problems (tap, build, solve), "is it balanced?", and "spot the glitch" |
+| `js/explainers.js` | Animated concept lessons |
+| `js/blitz.js` | Lightning Round |
+| `js/app.js` | Screens, rounds, guide bubble, keypad, results, parent view |
 
-## Easy next upgrades
+### Adding problems
 
-- parent PIN and exportable progress report;
-- optional learner profiles for multiple kids;
-- a larger external JSON question bank or simple question-authoring screen.
+Write a generator in `js/problems.js` that returns an activity spec, for example
+`{ type: 'solve', eq: '4x - 3 = 17', prompt: 'Solve for x' }`, then add its name to a world's `levels` list.

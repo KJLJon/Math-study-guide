@@ -201,15 +201,15 @@
   };
 
   const LESSONS = {
-    equality: ['balance', 'oneSide', 'bothSides', 'check'],
+    balance: ['balance', 'oneSide', 'bothSides', 'check'],
     moving: ['trick', 'really', 'opposites', 'multTrap', 'unwrap', 'divideAll', 'recipe'],
     algebra: ['unwrap', 'opposites', 'multTrap', 'divideAll', 'check', 'recipe'],
-    conversions: ['convBar', 'convBack', 'unitFraction', 'unitFraction2'],
+    units: ['convBar', 'convBack', 'unitFraction', 'unitFraction2'],
     percents: ['pctWhole', 'pctDecrease', 'pctIncrease', 'pctDecide', 'pctTrap', 'pctClues'],
     words: ['wordPlan', 'wordMap', 'wordTraps', 'pctClues']
   };
 
-  let list = [], idx = 0, title = '';
+  let list = [], idx = 0, title = '', onClose = null;
   const modal = () => document.getElementById('explainer');
 
   function speak(text) {
@@ -235,7 +235,9 @@
   }
 
   function close() {
+    if (modal().hidden) return;
     modal().hidden = true;
+    const cb = onClose; onClose = null; if (cb) setTimeout(cb, 0);
     try { speechSynthesis.cancel(); } catch {}
     document.body.classList.remove('modal-open');
   }
@@ -245,7 +247,7 @@
     m.querySelector('[data-ex=prev]').addEventListener('click', () => { if (idx > 0) { idx--; draw(); } });
     m.querySelector('[data-ex=next]').addEventListener('click', () => {
       if (idx < list.length - 1) { idx++; draw(); }
-      else { close(); window.MQ?.toast('Concept lesson complete! 🎬'); window.MQ?.addXP(3); }
+      else { window.MQ?.toast('Concept lesson complete! 🎬'); window.MQ?.addXP?.(3); close(); }
     });
     m.querySelector('[data-ex=replay]').addEventListener('click', draw);
     m.querySelector('[data-ex=close]').addEventListener('click', close);
@@ -266,9 +268,9 @@
   window.MathExplainers = {
     init,
     has: key => !!LESSONS[key],
-    open(key, label) {
-      list = LESSONS[key] || []; idx = 0; title = label || 'Concept lesson';
-      if (!list.length) return;
+    open(key, label, cb) {
+      list = LESSONS[key] || []; idx = 0; title = label || 'Concept lesson'; onClose = cb || null;
+      if (!list.length) { if (cb) cb(); return; }
       modal().hidden = false; document.body.classList.add('modal-open'); draw();
       modal().querySelector('[data-ex=next]').focus();
     }
