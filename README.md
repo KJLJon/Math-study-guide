@@ -22,6 +22,9 @@ An interactive, mobile-first math practice app for 8th grade. It's built around 
 - **Every wrong choice has a specific explanation.** For example, "3x means 3 TIMES x, so it crosses as ÷ 3, not − 3."
 - **Every solution is checked** by plugging the answer back into the original equation.
 - **Rounds of 5 problems** earn stars and unlock the next level. Missed problem types come back more often, and Smart Review drills them.
+- **♾️ Endless practice:** from any world, keep solving problems of one level with no round end. It shows a running solved count and streak.
+- **Progress saves after every problem.** If she leaves mid-round, the home screen shows *Continue where you left off* at the same problem.
+- **Smart taps:** tapping anywhere on a term like 4/3 x does whatever makes sense right now: move the whole term when x is on both sides, or undo the multiplying when it's alone.
 - **Extras:** 🛠️ *Solve MY equation* (type any homework equation), ⚡ Lightning Round (60-second game), 👑 Boss Mix, and 🎬 animated concept lessons with read-aloud.
 - **Parent view** shows first-try accuracy per world and which *step* causes slips (choosing the operation vs. arithmetic vs. multiply-or-divide…).
 

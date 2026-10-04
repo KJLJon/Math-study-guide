@@ -37,6 +37,9 @@
     return MQ.WORLDS.find(w => !store.world(w.id).levels[0].cleared)?.id || 'moving';
   }
   function renderHome() {
+    const saved = store.session && WORLD(store.session.worldId || store.session.round?.[0]?.worldId) ? store.session : null;
+    const sw = saved ? WORLD(saved.worldId || saved.round[saved.i]?.worldId || saved.round[0].worldId) : null;
+    const savedLabel = saved ? (saved.mode === 'endless' ? `♾️ Endless practice · ${saved.results.filter(r => r !== null).length} solved` : saved.mode === 'world' ? `${MQ.LEVELS[saved.level].icon} Level ${saved.level + 1}: ${MQ.LEVELS[saved.level].name} · problem ${saved.i + 1} of ${saved.round.length}` : saved.mode === 'boss' ? `👑 Boss Mix · problem ${saved.i + 1} of ${saved.round.length}` : `🎯 Smart Review · problem ${saved.i + 1} of ${saved.round.length}`) : '';
     const sug = WORLD(suggestion()), sl = nextLevel(sug.id);
     const goal = 3, today = store.data.day.last === new Date().toLocaleDateString('en-CA') ? store.data.day.roundsToday : 0;
     const totalStars = MQ.WORLDS.reduce((a, w) => a + worldStars(w.id), 0);
@@ -46,7 +49,15 @@
         <div class="stats"><span class="pill">⭐ <b data-xp></b></span><span class="pill">🔥 <b data-streak></b></span><button class="pill icon" data-mute type="button"></button></div></header>
       <div class="wrap">
         ${store.data.name ? `<div class="hello">👋 Hi, <b>${esc(store.data.name)}</b>! Ollie missed you. 🦉</div>` : `<form class="name-card" id="nameForm"><span class="nc-owl">🦉</span><label for="nameIn">Hi! I'm Ollie. What should I call you?</label><div class="nc-row"><input id="nameIn" maxlength="20" autocomplete="off" placeholder="Your name"><button class="go-btn" type="submit">Save</button></div></form>`}
-        <section class="hero-card" style="--c:${sug.color};--bg:${sug.bg}">
+        ${saved ? `<section class="hero-card resume-card" style="--c:${sw.color};--bg:${sw.bg}">
+          <div class="eyebrow">⏸️ PICK UP WHERE YOU LEFT OFF</div>
+          <h1>${sw.icon} ${esc(saved.mode === 'world' || saved.mode === 'endless' ? sw.title : saved.mode === 'boss' ? 'Boss Mix' : 'Smart Review')}</h1>
+          <p>${savedLabel}</p>
+          <div class="resume-dots">${saved.mode === 'endless' ? '' : saved.round.map((it, j) => `<i class="${j < saved.i ? (it.demo || saved.results[j] ? 'good' : 'ok') : j === saved.i ? 'now' : ''}"></i>`).join('')}</div>
+          <button class="big-btn" id="resumeBtn" type="button">▶ Continue</button>
+          <button class="link-btn small" id="dropBtn" type="button">Start something else</button>
+        </section>` : ''}
+        <section class="hero-card" style="--c:${sug.color};--bg:${sug.bg}" ${saved ? 'hidden' : ''}>
           <div class="hero-top">
             <div><div class="eyebrow">KEEP GOING</div><h1>${sug.icon} ${esc(sug.title)}</h1><p>${MQ.LEVELS[sl].icon} Level ${sl + 1}: ${MQ.LEVELS[sl].name} — ${esc(MQ.LEVELS[sl].blurb)}</p></div>
             <div class="ring" style="--p:${Math.min(1, today / goal)}"><div><b>${Math.min(today, goal)}/${goal}</b><small>today</small></div></div>
@@ -78,6 +89,8 @@
       </div>`;
     MQ.renderStats();
     $('#continueBtn').onclick = () => startRound(sug.id, sl);
+    if ($('#resumeBtn')) $('#resumeBtn').onclick = () => resume(store.session);
+    if ($('#dropBtn')) $('#dropBtn').onclick = () => { store.saveSession(null); renderHome(); };
     $('#nameForm')?.addEventListener('submit', e => { e.preventDefault(); const n = $('#nameIn').value.trim(); if (!n) return; store.setName(n); MQ.sfx('win'); MQ.celebrate(40); MQ.toast(`Nice to meet you, ${n}! 🎉`); renderHome(); });
     $$('[data-world]').forEach(b => b.onclick = () => openWorld(b.dataset.world));
     $$('[data-lesson]').forEach(b => b.onclick = () => window.MathExplainers.open(b.dataset.lesson, WORLD(b.dataset.lesson).title));
@@ -109,11 +122,14 @@
               <span class="n-stars">${[0, 1, 2].map(s => `<i class="${s < lv.stars ? 'on' : ''}">★</i>`).join('')}</span></span></button>`;
           }).join('')}
         </div>
+        <div class="endless-card"><b>♾️ Endless practice</b><small>Keep going as long as you like — no round end.</small>
+          <div class="endless-btns">${MQ.LEVELS.map((L, j) => store.unlocked(id, j) ? `<button class="mini-btn" data-endless="${j}" type="button">${L.icon} ${L.name}</button>` : '').join('')}</div></div>
         ${trouble.length ? `<div class="trouble"><b>🎯 Trouble spots:</b> ${trouble.map(([k]) => `<span>${esc(MQ.KIND_NAMES[k])}</span>`).join('')}<small>Rounds will give you extra practice on these.</small></div>` : ''}
       </div>`;
     MQ.renderStats();
     $('#scr-world [data-home]').onclick = MQ.home;
     $('#scr-world [data-lesson]').onclick = () => window.MathExplainers.open(id, w.title);
+    $$('#scr-world [data-endless]').forEach(b => b.onclick = () => startEndless(id, Number(b.dataset.endless)));
     $$('#scr-world [data-level]').forEach(b => b.onclick = () => {
       const j = Number(b.dataset.level);
       if (!store.unlocked(id, j)) { MQ.toast(`Clear Level ${j} first! 🔒`); MQ.sfx('bad'); MQ.replay(b, 'shake-once'); return; }
@@ -126,7 +142,19 @@
   let session = null;   // {round:[{worldId,kind}], i, level, worldId, results:[], mode}
   let ctxToken = 0;
 
+  function resume(saved) {
+    session = saved;
+    showPlayShell();
+    nextProblem();
+  }
+  function startEndless(worldId, level) {
+    store.data.lastWorld = worldId;
+    session = { mode: 'endless', worldId, level, round: [], i: 0, results: [] };
+    showPlayShell(); nextProblem();
+  }
   function startRound(worldId, level) {
+    const saved = store.session;
+    if (saved && saved.mode === 'world' && saved.worldId === worldId && saved.level === level && saved.i > 0) return resume(saved);
     store.data.lastWorld = worldId;
     const first = level === 0 && !store.seen(`intro-${worldId}`);
     session = { mode: 'world', worldId, level, round: MQ.buildRound(worldId, level), i: 0, results: [] };
@@ -169,7 +197,7 @@
         <div class="guide"><div class="mascot" id="mascot" aria-hidden="true">🦉</div><div class="bubble" id="bubble" aria-live="polite"></div></div>
         <div id="controls" class="controls"></div>
       </footer>`;
-    $('#quitBtn').onclick = () => { ctxToken++; if (session?.mode === 'world') openWorld(session.worldId); else MQ.home(); };
+    $('#quitBtn').onclick = () => { ctxToken++; if (session?.mode === 'world' || session?.mode === 'endless') openWorld(session.worldId); else MQ.home(); };
     $('#hintBtn').onclick = () => MQ._hint?.();
     show('play');
   }
@@ -182,6 +210,11 @@
   }
 
   function paintRoundBar() {
+    if (session.mode === 'endless') {
+      const done = session.results.filter(r => r !== null).length, good = session.results.filter(Boolean).length;
+      $('.round-bar').innerHTML = `<span class="endless-count">♾️ <b>${done}</b> solved · ⭐ ${good} first try</span>`;
+      return;
+    }
     $$('.round-bar i').forEach((n, j) => {
       const r = session.results[j], demo = session.round[j]?.demo;
       n.className = (demo ? 'demo ' : '') + (j < session.i ? (demo ? 'good' : r ? 'good' : 'ok') : j === session.i ? 'now' : '');
@@ -190,7 +223,12 @@
 
   async function nextProblem() {
     if (!session) return;
+    if (session.mode === 'endless' && session.i >= session.round.length) {
+      // Endless practice: keep adding problems of the same kinds (no worked examples).
+      session.round.push(...MQ.buildRound(session.worldId, session.level).map(({ worldId, kind, review }) => ({ worldId, kind, review })));
+    }
     if (session.mode !== 'free' && session.i >= session.round.length) return endRound();
+    if (session.mode !== 'free') store.saveSession(session);
     const item = session.round[session.i];
     const spec = MQ.makeProblem(item.kind);
     paintRoundBar();
@@ -419,6 +457,7 @@
 
   async function endRound() {
     const s = session, scored = s.results.filter(r => r !== null), good = scored.filter(Boolean).length;
+    store.saveSession(null);
     const ratio = scored.length ? good / scored.length : 1;
     const stars = ratio >= 1 ? 3 : ratio >= .75 ? 2 : ratio >= .5 ? 1 : 0;
     const res = store.round(s.mode === 'world' ? s.worldId : null, s.mode === 'world' ? s.level : null, Math.max(stars, s.mode === 'world' && s.level === 0 ? 1 : 0));
@@ -435,6 +474,7 @@
         <div class="end-btns">
           ${unlock ? `<button class="big-btn" id="endNext" type="button">Next level ▶</button>` : ''}
           <button class="${unlock ? 'ghost-btn' : 'big-btn'}" id="endAgain" type="button">↻ Play again</button>
+          ${w ? `<button class="ghost-btn" id="endEndless" type="button">♾️ Keep practicing (endless)</button>` : ''}
           <button class="ghost-btn" id="endMap" type="button">${w ? 'World map' : 'Home'}</button>
         </div>
       </div></div>`;
@@ -448,6 +488,7 @@
     if (unlock) setTimeout(() => { MQ.sfx('unlock'); MQ.fireworks(4); MQ.burst($('.unlock'), { count: 16, emojis: ['🔓', '✨', '🎉'] }); }, 900 + stars * 380);
     $('#endAgain').onclick = () => s.mode === 'world' ? startRound(s.worldId, s.level) : s.mode === 'review' ? startReview() : startBoss();
     $('#endMap').onclick = () => w ? openWorld(w.id) : MQ.home();
+    if ($('#endEndless')) $('#endEndless').onclick = () => startEndless(s.worldId, s.level);
     if ($('#endNext')) $('#endNext').onclick = () => startRound(s.worldId, s.level + 1);
   }
 
