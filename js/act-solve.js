@@ -110,8 +110,11 @@
         let inner;
         if (qOne(a)) inner = `<span class="xvar">${esc(v)}</span>`;
         else if (a.d !== 1 && Math.abs(a.n) === 1) inner = `${a.n < 0 ? '<span class="chip tap coef neg" data-side="' + k + '" data-part="coef">−</span>' : ''}<span class="frac"><span class="xvar">${esc(v)}</span><span class="chip tap den" data-side="${k}" data-part="den">${a.d}</span></span>`;
-        else inner = `<span class="chip tap coef" data-side="${k}" data-part="coef">${esc(qEq(a, Q(-1)) ? '−' : a.d !== 1 ? '(' + qStr(a) + ')' : qStr(a))}</span><span class="xvar">${esc(v)}</span>`;
-        out.push(`<span class="term xterm tap" data-side="${k}" data-part="xterm">${inner}</span>`);
+        else if (a.d !== 1) inner = `<span class="chip tap coef" data-side="${k}" data-part="coef">${a.n < 0 ? '−' : ''}<span class="frac fnum"><span>${Math.abs(a.n)}</span><span>${a.d}</span></span></span><span class="xvar">${esc(v)}</span>`;
+        else inner = `<span class="chip tap coef" data-side="${k}" data-part="coef">${esc(qEq(a, Q(-1)) ? '−' : qStr(a))}</span><span class="xvar">${esc(v)}</span>`;
+        // When x is on both sides the whole x-term is what moves, so draw it as one block.
+        const whole = !qZero(st.left.x) && !qZero(st.right.x) && !st.group.L && !st.group.R;
+        out.push(`<span class="term xterm tap ${whole ? 'whole' : ''}" data-side="${k}" data-part="xterm">${inner}</span>`);
       }
       if (!qZero(e.c)) out.push(`<span class="term chip tap const" data-side="${k}" data-part="const">${esc(signed(e.c, !out.length))}</span>`);
       if (!out.length) out.push('<span class="term zero">0</span>');
@@ -158,6 +161,16 @@
     }
     const chipFor = p => p.part === 'distribute' ? MQ.$('[data-distribute]', tools) : MQ.$(`[data-side="${p.side}"][data-part="${p.part}"]`, eqn);
 
+    // The coefficient sits INSIDE the x-term, so one tap could mean either
+    // "move the whole term" or "undo the multiplying". Only one of those is ever
+    // a helpful move at a time, so use whichever one makes sense right now.
+    function intended(p) {
+      if (st.group[p.side] || !['coef', 'den', 'xterm'].includes(p.part) || !judge(p)) return p;
+      const e = sideOf(p.side);
+      const coefPart = qOne(e.x) ? null : (e.x.d !== 1 && Math.abs(e.x.n) === 1 && e.x.n > 0) ? 'den' : 'coef';
+      const alt = p.part === 'xterm' ? coefPart : 'xterm';
+      return alt && !judge({ ...p, part: alt }) ? { ...p, part: alt } : p;
+    }
     function judge(p) {
       const g = st.group[p.side];
       const other = p.side === 'L' ? 'R' : 'L';
@@ -408,6 +421,7 @@
         if (ctx.isDemo()) { await ctx.next('▶ Show me'); p = { ...bestPick(), dragged: false }; MQ.sfx('pick'); break; }
         p = await waitPick();
         if (p.part === 'distribute') break;
+        p = intended(p);
         const why = judge(p);
         if (!why) break;
         attempt++; ctx.oops(why, 'pick'); chipFor(p)?.classList.add('shake-once');

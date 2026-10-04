@@ -30,6 +30,9 @@
   MQ.store = {
     get data() { return data; },
     world(id) { data.worlds[id] ||= blankWorld(); return data.worlds[id]; },
+    // The round in progress, saved after every problem so she can leave and come back.
+    saveSession(sess) { data.session = sess ? JSON.parse(JSON.stringify(sess)) : null; save(); },
+    get session() { return data.session || null; },
     setName(n) { data.name = String(n || '').trim().slice(0, 20); save(); },
     muted: () => !!data?.muted,
     setMuted(v) { data.muted = v; save(); },
