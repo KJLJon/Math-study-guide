@@ -201,8 +201,19 @@
         const a = e.x;
         txt = lvl === 0 ? (qEq(a, Q(-1)) ? `−${esc(v)} means −1 × ${esc(v)}. Tap the <b>−</b> sign to undo it.` : `<b>${esc(coefText(a, v))}</b> means ${qPretty(a)} <b>TIMES</b> ${esc(v)}. Tap the <b>${qPretty(a)}</b>.`) : lvl === 1 ? `Only one thing is left stuck to ${esc(v)}. Tap it.` : `Your move!`;
       }
+      if (ctx.isDemo()) {
+        const demoTxt = {
+          distribute: `👀 <b>Watch me.</b> There are parentheses AND x on both sides, so first I'll <b>distribute</b> — multiply every term inside by the number outside.`,
+          gcoef: `👀 <b>Watch me.</b> The whole group is being multiplied. I'll undo that multiplying first.`,
+          xterm: `👀 <b>Watch me.</b> x is on BOTH sides. I'll gather the x's by moving <b>${esc(coefText(e.x, v))}</b>.`,
+          const: `👀 <b>Watch me.</b> What's stuck to ${esc(v)}? <b>${esc(signed(e.c, false))}</b> was ${e.c.n > 0 ? 'added on' : 'taken away'} last, so I'll undo it first.`,
+          den: `👀 <b>Watch me.</b> ${esc(v)} is being <b>divided by ${e.x.d}</b>. I'll undo that next.`,
+          coef: `👀 <b>Watch me.</b> <b>${esc(coefText(e.x, v))}</b> means ${qPretty(e.x)} TIMES ${esc(v)}. I'll undo the multiplying.`
+        };
+        txt = demoTxt[best.part] || txt;
+      }
       ctx.say(txt);
-      const glow = lvl === 0 || (lvl === 1 && attempt > 0);
+      const glow = ctx.isDemo() || lvl === 0 || (lvl === 1 && attempt > 0);
       MQ.$$('.glow', eqn).forEach(n => n.classList.remove('glow'));
       if (glow) chipFor(best)?.classList.add('glow');
     }
@@ -394,6 +405,7 @@
       let attempt = 0, p;
       for (;;) {
         narratePick(attempt);
+        if (ctx.isDemo()) { await ctx.next('▶ Show me'); p = { ...bestPick(), dragged: false }; MQ.sfx('pick'); break; }
         p = await waitPick();
         if (p.part === 'distribute') break;
         const why = judge(p);
@@ -416,8 +428,11 @@
       const q = p.dragged
         ? `<b>${esc(op.from)}</b> crossed the = sign! What does it really mean?`
         : ctx.level === 0 ? `To undo <b>${esc(op.from)}</b>, use the <b>opposite</b> — and keep the scale balanced. Pick one:` : `How do you undo <b>${esc(op.from)}</b>?`;
-      await ctx.ask(q, MQ.shuffle(op.options), { tag: 'op' });
+      await ctx.ask(ctx.isDemo() ? `How do I undo <b>${esc(op.from)}</b>?` : q, MQ.shuffle(op.options), { tag: 'op', demoWhy: `It's the <b>opposite</b> of ${esc(op.from)}, and I do it to <b>both sides</b> so the scale stays balanced.` });
+      const wasDemo = ctx.isDemo();
       await applyMove(p, op);
+      ctx.moveDone();
+      if (wasDemo && !ctx.isDemo() && !solvedSide()) { ctx.say('✋ <b>Your turn!</b> I did the first move — you finish it. 💪', 'yay'); MQ.sfx('good'); await sleep(1500); }
       shortcutEl.hidden = true;
     }
 

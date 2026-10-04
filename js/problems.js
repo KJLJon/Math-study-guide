@@ -226,16 +226,33 @@
   MQ.makeProblem = kind => { const g = G[kind]; if (!g) throw new Error('Unknown problem kind ' + kind); return { ...g(), kind }; };
   MQ.GENERATORS = G;
 
-  // Pick 5 problems for a round, favoring kinds with recorded misses.
+  // Build a round of 5, following "I do → we do → you do" and spaced review:
+  //  Learn:     1 worked example (Ollie solves, she steps through) + 4 of her own (first one the same kind)
+  //  Practice:  first problem is "faded" — Ollie does the first move, she finishes — then practice
+  //  Solo/Boss: practice, with one spaced-review problem from an earlier level or another world
+  // Kinds she has missed are picked more often.
   MQ.buildRound = (worldId, lvl, n = 5) => {
     const w = MQ.WORLDS.find(x => x.id === worldId);
     const pool = w.levels[lvl], misses = MQ.store.world(worldId).misses;
-    const out = [];
-    for (let i = 0; i < n; i++) {
+    const pickKind = i => {
       const weak = pool.filter(k => (misses[k] || 0) > 0);
-      const kind = weak.length && Math.random() < .4 ? pick(weak) : pool[i % pool.length] && i < pool.length ? pool[i] : pick(pool);
-      out.push({ worldId, kind });
+      return weak.length && Math.random() < .4 ? pick(weak) : i < pool.length ? pool[i] : pick(pool);
+    };
+    let items = Array.from({ length: n }, (_, i) => ({ worldId, kind: pickKind(i) }));
+    items = lvl === 0 ? items : MQ.shuffle(items);
+    if (lvl === 0) {
+      // Worked example first, then the same kind for "your turn".
+      items[0] = { worldId, kind: pool[0], demo: true };
+      items[1] = { worldId, kind: pool[0] };
     }
-    return MQ.shuffle(out);
+    if (lvl === 1 && MQ.GENERATORS[items[0].kind] && /^(eq_|bal_add|bal_mult|bal_two)/.test(items[0].kind)) items[0].faded = true;
+    if (lvl >= 1) {
+      // Spaced review: an earlier level of this world, or a level she cleared in another world.
+      const options = [];
+      for (let j = 0; j < lvl; j++) options.push({ worldId, kind: pick(w.levels[j]) });
+      for (const o of MQ.WORLDS) if (o.id !== worldId) MQ.store.world(o.id).levels.forEach((L, j) => { if (L.cleared) options.push({ worldId: o.id, kind: pick(o.levels[j]) }); });
+      if (options.length) items[n - 1] = { ...pick(options), review: true };
+    }
+    return items;
   };
 })();

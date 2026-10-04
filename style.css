@@ -500,3 +500,31 @@ h1,h2,h3{color:var(--navy);margin:0;line-height:1.15}
 @media(prefers-reduced-motion:reduce){
   *,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+/* ---------- celebrations + encouragement ---------- */
+.spark{position:fixed;z-index:260;pointer-events:none;font-size:20px;line-height:1;will-change:transform}
+.float-text{position:fixed;z-index:261;pointer-events:none;transform:translate(-50%,0);font-weight:950;font-size:20px;color:var(--green);text-shadow:0 2px 0 #fff,0 0 12px rgba(255,255,255,.9);white-space:nowrap;animation:floatUp 1.4s ease-out forwards}
+@keyframes floatUp{0%{transform:translate(-50%,0) scale(.6);opacity:0}20%{transform:translate(-50%,-18px) scale(1.15);opacity:1}100%{transform:translate(-50%,-70px) scale(1);opacity:0}}
+.streak-badge{flex:none;background:linear-gradient(135deg,#ff8a3d,#f4b942);color:#fff;font-weight:950;border-radius:999px;padding:6px 10px;font-size:15px;box-shadow:0 3px 0 #c76a1d}
+.streak-badge[hidden]{display:none}
+.mode-badge{display:inline-block;margin:0 0 6px 6px;font-size:12px;font-weight:900;border-radius:999px;padding:4px 10px;animation:pop .4s ease}
+.mode-badge.demo{background:#e8f1ff;color:#2f6cc0}.mode-badge.review{background:#f3e8ff;color:#7c3aed}.mode-badge.turn{background:var(--gold2);color:#8a5a00}
+.round-bar i.demo{background:#cfe0fb}.round-bar i.demo.good{background:#7eaee6}
+.choice.demo-pick{border-color:var(--blue);background:#eaf2ff;color:#2f6cc0;opacity:1;position:relative;animation:pulseGood .5s ease}
+.choice.demo-pick:after{content:"👆";position:absolute;right:10px;bottom:-6px;font-size:26px;animation:tapHand 1s ease-in-out infinite}
+@keyframes tapHand{50%{transform:translateY(-6px)}}
+.choice:disabled:not(.demo-pick):not(.right):not(.wrong){opacity:.55}
+.next-btn{margin-top:8px;background:var(--blue);box-shadow:0 5px 0 #2f6cc0;animation:rise .3s ease}
+.next-btn:active{box-shadow:0 1px 0 #2f6cc0}
+.success-row{display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap}
+.success .ft.grow{background:var(--green2);color:var(--green)}
+.streak-msg{justify-self:center;font-weight:950;color:#c2410c;font-size:18px;animation:xp .8s ease}
+.end-tip.great{background:var(--goodbg);color:#14532d}
+.hello{font-size:17px;color:var(--navy);margin:2px 2px 12px;animation:rise .4s ease}
+.name-card{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:center;background:#fff;border:2px dashed #cfc9ee;border-radius:22px;padding:12px 14px;margin-bottom:12px;animation:rise .4s ease}
+.nc-owl{font-size:38px;grid-row:span 2;animation:bob 2s ease-in-out infinite}
+.name-card label{font-weight:850;color:var(--navy);font-size:15px}
+.nc-row{display:flex;gap:8px}
+.nc-row input{flex:1;min-width:0;border:2px solid var(--line);border-radius:14px;padding:10px 12px;font-size:17px}
+.nc-row .go-btn{padding:0 16px;font-size:16px}
+.mascot.m-yay{animation:hop .7s ease 2}

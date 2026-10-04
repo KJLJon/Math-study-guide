@@ -92,6 +92,46 @@
       c.appendChild(p); setTimeout(() => p.remove(), 1800);
     }
   };
+  // Sparkle burst from an element (used on every correct step).
+  MQ.burst = (el, { count = 14, emojis = ['✨', '⭐', '💫', '🌟'], spread = 90 } = {}) => {
+    if (!el || MQ.reduced() || !document.body.animate) return;
+    const r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    for (let i = 0; i < count; i++) {
+      const s = document.createElement('span');
+      s.className = 'spark'; s.textContent = MQ.pick(emojis);
+      Object.assign(s.style, { left: `${cx}px`, top: `${cy}px` });
+      document.body.appendChild(s);
+      const ang = (Math.PI * 2 * i) / count + Math.random() * .5, dist = spread * (.55 + Math.random() * .6);
+      s.animate([
+        { transform: 'translate(-50%,-50%) scale(.3)', opacity: 1 },
+        { transform: `translate(calc(-50% + ${Math.cos(ang) * dist}px), calc(-50% + ${Math.sin(ang) * dist}px)) scale(1.1) rotate(${MQ.rand(-90, 90)}deg)`, opacity: 1, offset: .65 },
+        { transform: `translate(calc(-50% + ${Math.cos(ang) * dist * 1.15}px), calc(-50% + ${Math.sin(ang) * dist * 1.15 + 30}px)) scale(.6)`, opacity: 0 }
+      ], { duration: 900 + Math.random() * 300, easing: 'cubic-bezier(.2,.8,.3,1)' });
+      setTimeout(() => s.remove(), 1300);
+    }
+  };
+  // A word that floats up from an element ("Nice move!").
+  MQ.floatText = (el, text, cls = '') => {
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const f = document.createElement('div');
+    f.className = 'float-text ' + cls; f.textContent = text;
+    Object.assign(f.style, { left: `${r.left + r.width / 2}px`, top: `${r.top}px` });
+    document.body.appendChild(f);
+    setTimeout(() => f.remove(), 1500);
+  };
+  // Fireworks: several bursts around the screen.
+  MQ.fireworks = (n = 5) => {
+    if (MQ.reduced()) return;
+    for (let i = 0; i < n; i++) setTimeout(() => {
+      const d = document.createElement('div');
+      Object.assign(d.style, { position: 'fixed', left: `${MQ.rand(15, 85)}vw`, top: `${MQ.rand(12, 50)}vh`, width: '2px', height: '2px' });
+      document.body.appendChild(d);
+      MQ.burst(d, { count: 18, emojis: ['🎆', '✨', '🎇', '⭐', '💥'], spread: 120 });
+      MQ.sfx('pop');
+      setTimeout(() => d.remove(), 100);
+    }, i * 260);
+  };
   MQ.toast = msg => {
     const t = document.getElementById('toast'); if (!t) return;
     t.textContent = msg; t.classList.add('show'); clearTimeout(MQ.toast.timer);

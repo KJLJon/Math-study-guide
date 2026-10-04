@@ -45,6 +45,7 @@
       <header class="topbar"><div class="brand"><span class="logo">MQ</span><b>Math Quest</b></div>
         <div class="stats"><span class="pill">⭐ <b data-xp></b></span><span class="pill">🔥 <b data-streak></b></span><button class="pill icon" data-mute type="button"></button></div></header>
       <div class="wrap">
+        ${store.data.name ? `<div class="hello">👋 Hi, <b>${esc(store.data.name)}</b>! Ollie missed you. 🦉</div>` : `<form class="name-card" id="nameForm"><span class="nc-owl">🦉</span><label for="nameIn">Hi! I'm Ollie. What should I call you?</label><div class="nc-row"><input id="nameIn" maxlength="20" autocomplete="off" placeholder="Your name"><button class="go-btn" type="submit">Save</button></div></form>`}
         <section class="hero-card" style="--c:${sug.color};--bg:${sug.bg}">
           <div class="hero-top">
             <div><div class="eyebrow">KEEP GOING</div><h1>${sug.icon} ${esc(sug.title)}</h1><p>${MQ.LEVELS[sl].icon} Level ${sl + 1}: ${MQ.LEVELS[sl].name} — ${esc(MQ.LEVELS[sl].blurb)}</p></div>
@@ -77,6 +78,7 @@
       </div>`;
     MQ.renderStats();
     $('#continueBtn').onclick = () => startRound(sug.id, sl);
+    $('#nameForm')?.addEventListener('submit', e => { e.preventDefault(); const n = $('#nameIn').value.trim(); if (!n) return; store.setName(n); MQ.sfx('win'); MQ.celebrate(40); MQ.toast(`Nice to meet you, ${n}! 🎉`); renderHome(); });
     $$('[data-world]').forEach(b => b.onclick = () => openWorld(b.dataset.world));
     $$('[data-lesson]').forEach(b => b.onclick = () => window.MathExplainers.open(b.dataset.lesson, WORLD(b.dataset.lesson).title));
     $('#workshopBtn').onclick = openWorkshop;
@@ -158,7 +160,8 @@
     $('#scr-play').innerHTML = `
       <header class="play-top">
         <button class="icon-btn" id="quitBtn" aria-label="Quit round" type="button">✕</button>
-        <div class="round-bar" aria-hidden="true">${(session?.round || [0]).map(() => '<i></i>').join('')}</div>
+        <div class="round-bar" aria-hidden="true">${(session?.round || [0]).map(it => `<i class="${it?.demo ? 'demo' : ''}"></i>`).join('')}</div>
+        <span class="streak-badge" id="streakBadge" hidden></span>
         <button class="icon-btn" id="hintBtn" aria-label="Hint" type="button">💡</button>
       </header>
       <main class="play-main"><div id="playPrompt" class="play-prompt"></div><div id="stage" class="stage"></div></main>
@@ -180,8 +183,8 @@
 
   function paintRoundBar() {
     $$('.round-bar i').forEach((n, j) => {
-      const r = session.results[j];
-      n.className = j < session.i ? (r ? 'good' : 'ok') : j === session.i ? 'now' : '';
+      const r = session.results[j], demo = session.round[j]?.demo;
+      n.className = (demo ? 'demo ' : '') + (j < session.i ? (demo ? 'good' : r ? 'good' : 'ok') : j === session.i ? 'now' : '');
     });
   }
 
@@ -192,17 +195,38 @@
     const spec = MQ.makeProblem(item.kind);
     paintRoundBar();
     const w = WORLD(item.worldId);
-    $('#playPrompt').innerHTML = `<div class="tag" style="--c:${w.color};--bg:${w.bg}">${w.icon} ${esc(w.title)} · ${MQ.LEVELS[session.level].name}</div><h2 class="prompt-text">${esc(spec.prompt)}</h2>`;
+    const badge = item.demo ? '<span class="mode-badge demo">👀 Watch Ollie</span>' : item.review ? '<span class="mode-badge review">🔁 Quick review</span>' : session.round[session.i - 1]?.demo ? '<span class="mode-badge turn">✋ Your turn</span>' : item.faded ? '<span class="mode-badge turn">🤝 Ollie starts, you finish</span>' : '';
+    $('#playPrompt').innerHTML = `<div class="tag" style="--c:${w.color};--bg:${w.bg}">${w.icon} ${esc(w.title)} · ${MQ.LEVELS[session.level].name}</div>${badge}<h2 class="prompt-text">${esc(spec.prompt)}</h2>`;
     MQ.replay($('#playPrompt'), 'enter');
     $('#stage').innerHTML = ''; $('#controls').innerHTML = '';
-    const ctx = makeCtx({ worldId: item.worldId, kind: item.kind, level: session.level });
+    const help = item.review ? Math.min(session.level, 1) : session.level;
+    const ctx = makeCtx({ worldId: item.worldId, kind: item.kind, level: item.demo ? 0 : help, demo: item.demo ? 'full' : item.faded ? 1 : 0 });
+    if (session.round[session.i - 1]?.demo) setBubble(MQ.praise.yourTurn(), 'yay');
     const ok = await runActivity(spec, ctx);
     if (!ok) return;
-    session.results.push(ctx.firstTry);
-    store.problem(item.worldId, ctx.firstTry);
-    if (ctx.firstTry) store.fixed(item.worldId, item.kind);
-    const xp = ctx.firstTry ? 10 : 5; store.addXP(xp);
-    await successSheet(ctx, xp);
+    if (item.demo) {
+      session.results.push(null);
+      await successSheet(ctx, 0, spec, true);
+      session.i++; return nextProblem();
+    }
+    const firstTry = ctx.firstTry;
+    // Self-explanation: a quick "why" question in the guided levels.
+    if (help <= 1 && !ctx.free && (session.round[session.i - 1]?.demo || Math.random() < .4)) {
+      const wq = MQ.whyQuestion(spec.type);
+      if (wq) {
+        await sleep(500);
+        try { await ctx.ask(wq.q, MQ.shuffle([{ t: wq.ok, ok: true }, ...wq.bad.map(([t, why]) => ({ t, why }))]), { tag: 'why', noMiss: true }); }
+        catch (e) { if (e === DEAD) return; }
+        if (!ctx.alive()) return;
+      }
+    }
+    session.results.push(firstTry);
+    session.streak = firstTry ? (session.streak || 0) + 1 : 0;
+    store.problem(item.worldId, firstTry);
+    if (firstTry) store.fixed(item.worldId, item.kind);
+    const xp = firstTry ? 10 : 5; store.addXP(xp);
+    ctx.firstTry = firstTry;
+    await successSheet(ctx, xp, spec);
     session.i++;
     nextProblem();
   }
@@ -215,9 +239,10 @@
   }
 
   const DEAD = Symbol('dead');
-  function makeCtx({ worldId, kind, level, free = false }) {
+  function makeCtx({ worldId, kind, level, free = false, demo = 0 }) {
     const token = ++ctxToken;
     let hintFn = null, hintsUsed = 0;
+    let demoMoves = demo === 'full' ? Infinity : demo || 0;
     const alive = () => token === ctxToken;
     const guard = () => { if (!alive()) throw DEAD; };
     const never = () => new Promise(() => {});
@@ -225,12 +250,21 @@
       level, free, worldId, kind, firstTry: true, summary: '',
       stage: $('#stage'),
       alive,
+      // Worked-example mode: Ollie makes the moves, she taps "Next" at her own pace.
+      isDemo: () => demoMoves > 0,
+      moveDone() { if (demoMoves > 0 && demoMoves !== Infinity) demoMoves--; },
+      next(label = '▶ Next') {
+        if (!alive()) return never();
+        const c = $('#controls');
+        c.innerHTML = `<button class="big-btn next-btn" type="button">${label}</button>`;
+        return new Promise(r => c.firstElementChild.addEventListener('click', () => { if (alive()) { MQ.sfx('tap'); c.innerHTML = ''; r(); } }, { once: true }));
+      },
       say(html, mood) { if (!alive()) return; setBubble(html, mood); },
       setHint(fn) { hintFn = fn; },
       oops(html, tag) {
         if (!alive()) return;
-        if (!free) { ctx.firstTry = false; store.miss(worldId, kind); store.miss(worldId, 'tag:' + tag); }
-        setBubble(`<span class="oops-tag">Not quite!</span> ${html}`, 'oops'); MQ.sfx('bad');
+        if (!free && tag !== 'why') { ctx.firstTry = false; store.miss(worldId, kind); store.miss(worldId, 'tag:' + tag); }
+        setBubble(`<span class="oops-tag">${MQ.praise.oops()}</span> ${html}`, 'oops'); MQ.sfx('bad');
       },
       ask(q, options, opts = {}) {
         if (!alive()) return never();
@@ -238,6 +272,22 @@
         const c = $('#controls');
         const two = opts.grid === 2 || options.length === 2;
         c.innerHTML = `<div class="choices ${two ? 'two' : ''}">${options.map((o, i) => `<button class="choice" data-i="${i}" type="button" style="--i:${i}">${esc(o.t)}</button>`).join('')}</div>`;
+        if (ctx.isDemo() && (opts.demoPick || !opts.free)) {
+          // Show the choice Ollie makes (and why), then wait for "Next".
+          const idx = opts.free ? options.findIndex(o => o.id === opts.demoPick) : options.findIndex(o => o.ok);
+          const btns = [...c.querySelectorAll('.choice')]; btns.forEach(b => b.disabled = true);
+          const b = btns[idx];
+          return (async () => {
+            await sleep(700); if (!alive()) return never();
+            b.classList.add('demo-pick'); MQ.sfx('pick');
+            if (!opts.free) setBubble(`${q ? q + '<br>' : ''}👉 I pick <b>${esc(options[idx].t)}</b>. ${opts.demoWhy || ''}`);
+            c.insertAdjacentHTML('beforeend', '<button class="big-btn next-btn" type="button">▶ Next</button>');
+            await new Promise(r => c.querySelector('.next-btn').addEventListener('click', r, { once: true }));
+            if (!alive()) return never();
+            MQ.sfx('good'); c.innerHTML = '';
+            return options[idx];
+          })();
+        }
         return new Promise(resolve => {
           c.querySelectorAll('.choice').forEach(b => b.addEventListener('click', async () => {
             if (!alive()) return;
@@ -246,7 +296,8 @@
             if (o.ok) {
               c.querySelectorAll('.choice').forEach(x => x.disabled = true);
               b.classList.add('right'); MQ.sfx('good');
-              await sleep(450); if (!alive()) return;
+              MQ.burst(b); MQ.floatText(b, MQ.praise.step());
+              await sleep(650); if (!alive()) return;
               c.innerHTML = ''; resolve(o);
             } else {
               b.classList.add('wrong'); b.disabled = true;
@@ -258,6 +309,7 @@
       number(promptHtml, expected, opts = {}) {
         if (!alive()) return never();
         setBubble(promptHtml);
+        if (ctx.isDemo()) return demoKeypad(expected, opts, ctx);
         return keypad(expected, opts, ctx);
       },
       button(label) {
@@ -280,6 +332,16 @@
   }
 
   /* ---------------- keypad ---------------- */
+  // Worked example: Ollie "types" the answer, she taps Next.
+  async function demoKeypad(expected, opts, ctx) {
+    const c = $('#controls');
+    c.innerHTML = `<div class="keypad"><div class="kp-display"><span class="kp-prefix">${esc(opts.prefix || '')}</span><span class="kp-val" id="kpVal"></span><span class="kp-caret"></span></div></div>`;
+    const txt = MQ.fmt(expected).replace('-', '−');
+    for (const ch of txt) { await sleep(260); if (!ctx.alive()) return new Promise(() => {}); $('#kpVal').textContent += ch; MQ.sfx('tap'); }
+    $('.kp-display', c).classList.add('right');
+    await ctx.next();
+    return expected;
+  }
   function keypad(expected, opts, ctx) {
     const c = $('#controls');
     c.innerHTML = `<div class="keypad">
@@ -303,7 +365,8 @@
         if (Math.abs(n - expected) < 0.006) {
           document.removeEventListener('keydown', onKey);
           $('.kp-display', c).classList.add('right'); MQ.sfx('good');
-          await sleep(450); c.innerHTML = ''; resolve(n); return;
+          MQ.burst($('.kp-display', c)); MQ.floatText($('.kp-display', c), MQ.praise.step());
+          await sleep(700); c.innerHTML = ''; resolve(n); return;
         }
         tries++;
         MQ.replay($('.kp-display', c), 'shake-once');
@@ -329,19 +392,35 @@
   }
 
   /* ---------------- success sheet + round end ---------------- */
-  async function successSheet(ctx, xp) {
-    const praise = ctx.firstTry ? MQ.pick(['Perfect! 🌟', 'Nailed it! 🎯', 'Brilliant! 💡', 'You proved it! 💪', 'Awesome! 🚀']) : MQ.pick(['You got there! 👍', 'Nice recovery! 🔁', 'Solved! ✅']);
-    setBubble(`<b>${praise}</b> ${ctx.summary}`, 'yay');
-    MQ.celebrate(ctx.firstTry ? 30 : 12); MQ.sfx(ctx.firstTry ? 'win' : 'good');
+  async function successSheet(ctx, xp, spec = {}, demo = false) {
     const c = $('#controls');
-    c.innerHTML = `<div class="success ${ctx.firstTry ? '' : 'meh'}"><span class="xp-pop">+${xp} XP</span>${ctx.firstTry ? '<span class="ft">⭐ First try!</span>' : ''}<button class="big-btn" id="nextBtn" type="button">Continue ▶</button></div>`;
-    await new Promise(r => $('#nextBtn').addEventListener('click', r));
+    if (demo) {
+      setBubble(`<b>That's how it's done!</b> ${ctx.summary} Now <b>you</b> try one just like it. 💪`, 'yay');
+      MQ.celebrate(14); MQ.sfx('good');
+      c.innerHTML = `<button class="big-btn" id="nextBtn" type="button">✋ My turn!</button>`;
+      await new Promise(r => $('#nextBtn').addEventListener('click', r, { once: true }));
+      MQ.sfx('tap'); return;
+    }
+    const praise = ctx.firstTry ? MQ.praise.solved(spec.type) : MQ.praise.recovered();
+    setBubble(`${praise}${ctx.summary ? `<br><small>${ctx.summary}</small>` : ''}`, 'yay');
+    MQ.celebrate(ctx.firstTry ? 60 : 30); MQ.sfx(ctx.firstTry ? 'win' : 'good');
+    MQ.burst($('#mascot'), { count: 10, emojis: ['💖', '⭐', '✨', '🎉'] });
+    const streak = session?.streak || 0, sMsg = session?.mode !== 'free' ? MQ.praise.streak(streak) : '';
+    const sb = $('#streakBadge');
+    if (sb) { sb.hidden = streak < 2; sb.textContent = `🔥 ${streak}`; MQ.replay(sb, 'pop-in'); }
+    c.innerHTML = `<div class="success ${ctx.firstTry ? '' : 'meh'}">
+      <div class="success-row"><span class="xp-pop">+${xp} XP</span>${ctx.firstTry ? '<span class="ft">⭐ First try!</span>' : '<span class="ft grow">🌱 Brain growing!</span>'}</div>
+      ${sMsg ? `<div class="streak-msg">${sMsg}</div>` : ''}
+      <button class="big-btn" id="nextBtn" type="button">Continue ▶</button></div>`;
+    if (sMsg) { MQ.burst($('.streak-msg'), { count: 12, emojis: ['🔥', '✨', '⭐'] }); if (streak >= 5) MQ.fireworks(3); }
+    await new Promise(r => $('#nextBtn').addEventListener('click', r, { once: true }));
     MQ.sfx('tap');
   }
 
   async function endRound() {
-    const s = session, good = s.results.filter(Boolean).length;
-    const stars = good >= 5 ? 3 : good >= 4 ? 2 : good >= 3 ? 1 : 0;
+    const s = session, scored = s.results.filter(r => r !== null), good = scored.filter(Boolean).length;
+    const ratio = scored.length ? good / scored.length : 1;
+    const stars = ratio >= 1 ? 3 : ratio >= .75 ? 2 : ratio >= .5 ? 1 : 0;
     const res = store.round(s.mode === 'world' ? s.worldId : null, s.mode === 'world' ? s.level : null, Math.max(stars, s.mode === 'world' && s.level === 0 ? 1 : 0));
     store.addXP(15);
     const w = s.mode === 'world' ? WORLD(s.worldId) : null;
@@ -350,8 +429,8 @@
       <div class="end-card">
         <div class="end-title">${stars === 3 ? 'PERFECT ROUND!' : stars ? 'ROUND COMPLETE!' : 'ROUND DONE!'}</div>
         <div class="end-stars">${[0, 1, 2].map(i => `<span class="es ${i < stars ? 'on' : ''}" style="--i:${i}">★</span>`).join('')}</div>
-        <p class="end-sub">${good} of ${s.results.length} on the first try · +${good * 10 + (s.results.length - good) * 5 + 15} XP</p>
-        ${stars === 0 ? '<p class="end-tip">Every mistake is practice. Play again — the guide gives extra help on the parts you missed.</p>' : ''}
+        <p class="end-sub">${good} of ${scored.length} on the first try · +${good * 10 + (scored.length - good) * 5 + 15} XP</p>
+        <p class="end-tip ${stars >= 2 ? 'great' : ''}">${MQ.praise.round(stars)}</p>
         ${unlock ? `<div class="unlock">🔓 Level ${s.level + 2}: ${MQ.LEVELS[s.level + 1].name} unlocked!</div>` : ''}
         <div class="end-btns">
           ${unlock ? `<button class="big-btn" id="endNext" type="button">Next level ▶</button>` : ''}
@@ -361,9 +440,12 @@
       </div></div>`;
     show('end');
     MQ.sfx(stars ? 'win' : 'good');
-    for (let i = 0; i < stars; i++) { await sleep(380); MQ.sfx('star'); }
-    if (stars) MQ.celebrate(50);
-    if (unlock) setTimeout(() => MQ.sfx('unlock'), 400 + stars * 380);
+    await sleep(350);
+    const starEls = $$('.es.on');
+    for (let i = 0; i < stars; i++) { await sleep(380); MQ.sfx('star'); MQ.burst(starEls[i], { count: 12, emojis: ['⭐', '✨', '🌟'] }); }
+    MQ.celebrate(stars ? 80 : 30);
+    if (stars === 3) MQ.fireworks(6);
+    if (unlock) setTimeout(() => { MQ.sfx('unlock'); MQ.fireworks(4); MQ.burst($('.unlock'), { count: 16, emojis: ['🔓', '✨', '🎉'] }); }, 900 + stars * 380);
     $('#endAgain').onclick = () => s.mode === 'world' ? startRound(s.worldId, s.level) : s.mode === 'review' ? startReview() : startBoss();
     $('#endMap').onclick = () => w ? openWorld(w.id) : MQ.home();
     if ($('#endNext')) $('#endNext').onclick = () => startRound(s.worldId, s.level + 1);

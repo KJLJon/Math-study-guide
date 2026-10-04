@@ -17,13 +17,33 @@ An interactive, mobile-first math practice app for 8th grade. It's built around 
 
 ### How the teaching works
 
-- **Each world has 4 levels:** Learn (Ollie the guide narrates every step and the target glows), Practice (questions, glow after a miss), Solo (she does the arithmetic on a keypad), and Boss (harder problems, no help).
+- **Each world has 4 levels:** Learn (a worked example first, then guided practice with narration), Practice (opens with a faded example, glow after a miss), Solo (she does the arithmetic on a keypad), and Boss (harder problems, no help).
 - **No guess-and-check for equations.** She never types x. She makes each move, and moves that aren't helpful are explained instead of applied, e.g. "Not yet! The +6 was added last, so it comes off first."
 - **Every wrong choice has a specific explanation.** For example, "3x means 3 TIMES x, so it crosses as ÷ 3, not − 3."
 - **Every solution is checked** by plugging the answer back into the original equation.
 - **Rounds of 5 problems** earn stars and unlock the next level. Missed problem types come back more often, and Smart Review drills them.
 - **Extras:** 🛠️ *Solve MY equation* (type any homework equation), ⚡ Lightning Round (60-second game), 👑 Boss Mix, and 🎬 animated concept lessons with read-aloud.
 - **Parent view** shows first-try accuracy per world and which *step* causes slips (choosing the operation vs. arithmetic vs. multiply-or-divide…).
+
+## Why it teaches this way (research behind the design)
+
+The flow follows the U.S. Dept. of Education's What Works Clearinghouse practice guides for algebra and problem solving, plus well-replicated findings from cognitive science.
+
+| Proven practice | How Math Quest does it |
+| --- | --- |
+| **Worked examples, then practice** ("I do → we do → you do") | Every **Learn** round opens with *👀 Watch Ollie*: Ollie solves one step by step while she taps **Next** at her own pace. Then *✋ Your turn* on the same kind of problem. |
+| **Fading support** | **Practice** opens with a *faded example* (Ollie makes the first move, she finishes). Hints, glowing targets and narration step back level by level, until **Boss** has none. |
+| **Concrete → visual → abstract** | Mystery bags and blocks on a scale → a scale with expressions → equations alone. Percent bars and unit bars sit beside the symbols. |
+| **Use the structure of the math; avoid "magic tricks"** | "Moving across the =" is always shown as the opposite operation done to **both sides**, with zero pairs crossing out. Then a shortcut replay connects it to the trick. |
+| **Explanatory feedback right away** | Every wrong choice gets a reason ("3x means 3 TIMES x, so it crosses as ÷ 3"). Moves that aren't helpful are explained, not just marked wrong. |
+| **Learning from mistakes** | "Spot the glitch" problems show a common wrong solution to find and fix. |
+| **Self-explanation** | 🤔 Quick "why?" questions after problems ("Why do we do the same thing to both sides?"). |
+| **Check and reflect** | Every equation ends by plugging the answer back in. Word problems end with "what does the answer *mean*?" |
+| **Retrieval, spacing and mixing** | From Practice up, each round has a 🔁 *Quick review* from an earlier level or another world. Missed problem types come back more often, and Smart Review drills them. |
+| **Growth-mindset feedback** | Praise names the strategy and the effort ("You undid each step on BOTH sides!", "You stuck with it — that's how brains grow 🌱") rather than "you're smart". Mistakes get gentle wording plus a specific tip. |
+| **Motivation and engagement** | Sparkles and a cheer on every correct step, confetti on every solved problem, 🔥 streaks, stars, level unlocks with fireworks, and an optional name for Ollie to cheer by. |
+
+Sources: IES/WWC *Teaching Strategies for Improving Algebra Knowledge in Middle and High School Students* (2015); *Improving Mathematical Problem Solving in Grades 4 Through 8* (2012); *Organizing Instruction and Study to Improve Student Learning* (2007).
 
 ## Hosting (GitHub Pages)
 
@@ -49,7 +69,8 @@ python3 -m http.server 8000   # then open http://localhost:8000
 | `index.html` | Page shell (screens + lesson modal) |
 | `style.css` | Mobile-first styles and animations |
 | `js/core.js` | Exact fractions, equation parser, animation and sound helpers |
-| `js/store.js` | Progress (stars, levels, slips, daily streak) |
+| `js/store.js` | Progress (stars, levels, slips, daily streak, name) |
+| `js/praise.js` | Encouragement messages and "why?" self-explanation questions |
 | `js/problems.js` | Worlds, levels and **problem generators**, where you add more practice |
 | `js/act-solve.js` | Interactive equation solver (scale, tap/drag, both-sides animation, check) |
 | `js/act-percent.js` | Percent bar activity |

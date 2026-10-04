@@ -84,7 +84,14 @@
     ctx.say(ctx.level === 0 ? `${dragGoal} ${inc ? '' : `<small>(${rate}% means ${rate} out of every 100.)</small>`}` : dragGoal);
     ctx.setHint(() => { handle.classList.add('glow'); return `Find the tick for ${target}%. ${target % 10 ? `It's halfway between ${Math.floor(target / 10) * 10}% and ${Math.ceil(target / 10) * 10}%.` : ''}`; });
     if (ctx.level === 0) handle.classList.add('glow');
-    await new Promise(resolve => {
+    if (ctx.isDemo()) {
+      ctx.say(`👀 <b>Watch me.</b> ${dragGoal}`);
+      await ctx.next('▶ Show me');
+      for (let v = h; v !== target; v += (target > v ? step : -step)) { h = v; paint(); await sleep(70); }
+      h = target; paint(); handle.classList.remove('glow'); handle.classList.add('locked'); MQ.sfx('good'); MQ.replay(bar, 'lock');
+      ctx.say(`There's ${inc ? '+' : ''}${rate}%! ${inc ? `The original is 100%, plus ${rate}% more.` : `The pink part is ${rate}%, and ${100 - rate}% is left.`}`);
+      await ctx.next();
+    } else await new Promise(resolve => {
       let dragging = false;
       const setFrom = ev => {
         const r = bar.getBoundingClientRect();
@@ -122,6 +129,11 @@
       ctx.say(question);
       const glowEl = seg(want === 'total' ? 'total' : want);
       if (ctx.level === 0) glowEl?.classList.add('glow');
+      if (ctx.isDemo()) {
+        glowEl?.classList.add('glow');
+        ctx.say(`👀 ${question.replace(/ Tap it\.?/, '')}<br>👉 It's <b>${segName[want]}</b>.`);
+        await ctx.next(); glowEl?.classList.remove('glow'); MQ.sfx('good'); return;
+      }
       ctx.setHint(() => { glowEl?.classList.add('glow'); return `It's ${segName[want]}.`; });
       await new Promise(resolve => {
         const onTap = ev => {

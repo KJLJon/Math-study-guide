@@ -30,6 +30,7 @@
   MQ.store = {
     get data() { return data; },
     world(id) { data.worlds[id] ||= blankWorld(); return data.worlds[id]; },
+    setName(n) { data.name = String(n || '').trim().slice(0, 20); save(); },
     muted: () => !!data?.muted,
     setMuted(v) { data.muted = v; save(); },
     addXP(n) { data.xp += n; save(); MQ.renderStats?.(); },

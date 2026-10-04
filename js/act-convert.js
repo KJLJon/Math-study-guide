@@ -61,7 +61,8 @@
         : `Set up the fraction so <b>${esc(cancelU)}</b> cancels. Flip it if needed.`);
       ctx.setHint(() => `You have ${esc(cancelU)} on the ${opp}. Put ${esc(cancelU)} on the ${where} of the fraction so they cancel.`);
       for (;;) {
-        const pick = await ctx.ask('', [{ t: '↕ Flip it', id: 'flip' }, { t: '✔ Use this fraction', id: 'use' }], { tag: 'frac', grid: 2, free: true });
+        if (ctx.isDemo()) ctx.say(flipped ? `👀 ${esc(cancelU)} is on the ${opp} of the fraction — the same place as the ${esc(cancelU)} we have, so nothing would cancel. I'll <b>flip</b> it.` : `👀 Now ${esc(cancelU)} is on the ${where}, so it will cancel. I'll <b>use</b> this fraction.`);
+        const pick = await ctx.ask('', [{ t: '↕ Flip it', id: 'flip' }, { t: '✔ Use this fraction', id: 'use' }], { tag: 'frac', grid: 2, free: true, demoPick: flipped ? 'flip' : 'use' });
         if (pick.id === 'flip') { flipped = !flipped; card.classList.remove('flip'); void card.offsetWidth; card.classList.add('flip'); MQ.sfx('tap'); paint(); continue; }
         if (!flipped) break;
         MQ.replay(card, 'shake-once');

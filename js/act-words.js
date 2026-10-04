@@ -39,7 +39,12 @@
     const found = new Set();
     ctx.say(ctx.level === 0 ? `🖍️ Detective step: tap every <b>number</b> in the story. (${need.size} to find)` : extra.size ? `🖍️ Tap only the numbers you <b>need</b>. Careful — one is a distraction!` : `🖍️ Tap the numbers in the story.`);
     ctx.setHint(() => { MQ.$$('.num', story).forEach(n => { if (need.has(n.dataset.num) && !n.classList.contains('hit')) n.classList.add('glow'); }); return 'The glowing numbers are the ones you need.'; });
-    await new Promise(resolve => {
+    if (ctx.isDemo()) {
+      ctx.say('👀 <b>Watch me.</b> A math detective first circles every number in the story.');
+      await ctx.next('▶ Show me');
+      for (const n of MQ.$$('.num', story)) if (need.has(n.dataset.num)) { n.classList.add('hit'); found.add(n.dataset.num); MQ.sfx('pop'); await sleep(450); }
+      MQ.$('.found', root).innerHTML = [...found].map(f => `<span class="found-chip">${esc(f)}</span>`).join('');
+    } else await new Promise(resolve => {
       const onTap = ev => {
         const n = ev.target.closest('.num'); if (!n) return;
         const val = n.dataset.num;
@@ -58,7 +63,10 @@
     /* ---- 2. tap the question ---- */
     ctx.say('❓ Now tap the <b>question</b> — the sentence that says what they want.');
     ctx.setHint(() => { MQ.$('.sen[data-q="1"]', story)?.classList.add('glow'); return 'It\'s the sentence that ends with a question mark.'; });
-    await new Promise(resolve => {
+    if (ctx.isDemo()) {
+      ctx.say('👀 Next I underline the <b>question</b> — what are they actually asking?');
+      await ctx.next(); MQ.$('.sen[data-q="1"]', story).classList.add('q-hit'); MQ.sfx('good'); await sleep(500);
+    } else await new Promise(resolve => {
       const onTap = ev => {
         const s = ev.target.closest('.sen'); if (!s) return;
         if (s.dataset.q === '1') { s.classList.add('q-hit'); s.classList.remove('glow'); MQ.sfx('good'); story.removeEventListener('click', onTap); resolve(); }
@@ -94,7 +102,16 @@
     ctx.setHint(() => spec.buildHint);
     let tries = 0, eqText;
     ctx.say(ctx.level === 0 ? `🔗 Build the equation. ${spec.buildHint}` : `🔗 Build an equation for the story with the tiles.`);
-    for (;;) {
+    if (ctx.isDemo()) {
+      ctx.say(`👀 Now I build the equation. ${spec.buildHint}`);
+      await ctx.next('▶ Show me');
+      for (const tok of spec.eq.split(' ')) {
+        const t = MQ.$$('.tile:not(:disabled)', tray).find(x => x.textContent === tok);
+        if (t) { placed.push({ text: t.textContent, el: t }); t.disabled = true; paintSlots(); MQ.replay(slots.lastElementChild, 'pop-in'); MQ.sfx('tap'); await sleep(420); }
+      }
+      slots.classList.add('ok');
+    }
+    while (!ctx.isDemo()) {
       const pick = await ctx.ask('', [{ t: '↶ Clear', id: 'clear' }, { t: '✔ Check equation', id: 'check' }], { tag: 'build', grid: 2, free: true, keepSay: true });
       if (pick.id === 'clear') { placed.splice(0).forEach(t => t.el.disabled = false); paintSlots(); continue; }
       eqText = placed.map(t => t.text).join(' ');
@@ -106,12 +123,13 @@
         ok = typeof sol === 'object' && Math.abs(MQ.qNum(sol) - spec.answer) < 1e-9 && usedAll;
         if (!ok) why = spec.buildHint;
       } catch (e) { why = placed.length ? `That's not a complete equation yet. ${placed.some(t => t.text === '=') ? '' : 'It needs an = sign.'}` : 'Tap some tiles first!'; }
-      if (ok) { MQ.sfx('good'); slots.classList.add('ok'); break; }
+      if (ok) { MQ.sfx('good'); slots.classList.add('ok'); MQ.burst(slots); break; }
       tries++;
       ctx.oops(`${why}${tries >= 2 ? `<br><small>Here it is: <b>${esc(spec.eq)}</b>. Build that.</small>` : ''}`, 'build');
       MQ.replay(slots, 'shake-once');
     }
-    ctx.say(`✅ <b>${esc(eqText)}</b> matches the story! Now solve it.`);
+    eqText ||= spec.eq;
+    ctx.say(`✅ <b>${esc(eqText)}</b> matches the story! Now ${ctx.isDemo() ? "I'll" : ''} solve it.`);
     await sleep(1000);
     build.querySelector('.tiles').remove();
 
