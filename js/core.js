@@ -20,6 +20,28 @@
   MQ.sleep = ms => new Promise(r => setTimeout(r, MQ.reduced() ? Math.min(ms, 60) : ms));
   MQ.h = html => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
   MQ.replay = (el, cls) => { if (!el) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
+  // After an action that fires on pointerup, the browser still sends a "click" a moment later
+  // to whatever is under the finger THEN. If new buttons just appeared there (the dock grows),
+  // that click would press one of them. Swallow that one stray click.
+  MQ.eatClick = (ms = 500) => {
+    const eat = ev => { ev.stopPropagation(); ev.preventDefault(); off(); };
+    const off = () => { clearTimeout(t); document.removeEventListener('click', eat, true); };
+    const t = setTimeout(off, ms);
+    document.addEventListener('click', eat, true);
+  };
+  // Scroll the play area so `top`…`bottom` is visible (the dock can cover the bottom of it).
+  // If it doesn't all fit, keep `bottom` (the part she taps) on screen.
+  MQ.keepInView = (top, bottom = top) => {
+    const box = top?.closest('.play-main');
+    if (!box || !bottom) return;
+    const b = box.getBoundingClientRect(), t = top.getBoundingClientRect(), e = bottom.getBoundingClientRect();
+    const pad = 8;
+    let d = 0;
+    if (e.bottom - t.top + pad * 2 > b.height) d = e.bottom + pad - b.bottom;
+    else if (t.top - pad < b.top) d = t.top - pad - b.top;
+    else if (e.bottom + pad > b.bottom) d = e.bottom + pad - b.bottom;
+    if (Math.abs(d) > 2) box.scrollBy({ top: d, behavior: MQ.reduced() ? 'auto' : 'smooth' });
+  };
 
   // Fly a copy of `fromEl` to `toEl` (optionally changing its text half-way, e.g. "+ 6" → "− 6").
   MQ.fly = async (fromEl, toEl, { text, flipTo, duration = 900, cls = '' } = {}) => {

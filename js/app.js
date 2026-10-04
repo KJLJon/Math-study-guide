@@ -284,6 +284,10 @@
     const alive = () => token === ctxToken;
     const guard = () => { if (!alive()) throw DEAD; };
     const never = () => new Promise(() => {});
+    // Buttons ignore clicks for a moment after they appear, so a tap meant for something
+    // that was just under her finger (before the dock grew) can't press them by accident.
+    const fresh = () => { const t = performance.now() + 300; return () => performance.now() < t; };
+    const onTap = (btn, fn) => { const tooSoon = fresh(); const h = () => { if (tooSoon()) return; btn.removeEventListener('click', h); fn(); }; btn.addEventListener('click', h); };
     const ctx = {
       level, free, worldId, kind, firstTry: true, summary: '',
       stage: $('#stage'),
@@ -295,7 +299,7 @@
         if (!alive()) return never();
         const c = $('#controls');
         c.innerHTML = `<button class="big-btn next-btn" type="button">${label}</button>`;
-        return new Promise(r => c.firstElementChild.addEventListener('click', () => { if (alive()) { MQ.sfx('tap'); c.innerHTML = ''; r(); } }, { once: true }));
+        return new Promise(r => onTap(c.firstElementChild, () => { if (alive()) { MQ.sfx('tap'); c.innerHTML = ''; r(); } }));
       },
       say(html, mood) { if (!alive()) return; setBubble(html, mood); },
       setHint(fn) { hintFn = fn; },
@@ -320,15 +324,16 @@
             b.classList.add('demo-pick'); MQ.sfx('pick');
             if (!opts.free) setBubble(`${q ? q + '<br>' : ''}👉 I pick <b>${esc(options[idx].t)}</b>. ${opts.demoWhy || ''}`);
             c.insertAdjacentHTML('beforeend', '<button class="big-btn next-btn" type="button">▶ Next</button>');
-            await new Promise(r => c.querySelector('.next-btn').addEventListener('click', r, { once: true }));
+            await new Promise(r => onTap(c.querySelector('.next-btn'), r));
             if (!alive()) return never();
             MQ.sfx('good'); c.innerHTML = '';
             return options[idx];
           })();
         }
+        const tooSoon = fresh();
         return new Promise(resolve => {
           c.querySelectorAll('.choice').forEach(b => b.addEventListener('click', async () => {
-            if (!alive()) return;
+            if (!alive() || tooSoon()) return;
             const o = options[Number(b.dataset.i)];
             if (opts.free) { MQ.sfx('tap'); c.innerHTML = ''; resolve(o); return; }
             if (o.ok) {
@@ -354,7 +359,7 @@
         if (!alive()) return never();
         const c = $('#controls');
         c.innerHTML = `<button class="big-btn" type="button">${label}</button>`;
-        return new Promise(r => c.firstElementChild.addEventListener('click', () => { if (alive()) { MQ.sfx('tap'); c.innerHTML = ''; r(); } }, { once: true }));
+        return new Promise(r => onTap(c.firstElementChild, () => { if (alive()) { MQ.sfx('tap'); c.innerHTML = ''; r(); } }));
       },
       done(summary) { ctx.summary = summary || ''; }
     };

@@ -109,7 +109,7 @@
       };
       const down = ev => { dragging = true; try { bar.setPointerCapture(ev.pointerId); } catch {} setFrom(ev); MQ.sfx('tap'); };
       const move = ev => { if (dragging) setFrom(ev); };
-      const up = () => { if (!dragging) return; dragging = false; check(); };
+      const up = () => { if (!dragging) return; dragging = false; MQ.eatClick(); check(); };
       const key = ev => {
         const d = { ArrowRight: step, ArrowUp: step, ArrowLeft: -step, ArrowDown: -step }[ev.key];
         if (d) { ev.preventDefault(); h = Math.max(inc ? 100 : 0, Math.min(max, h + d)); paint(); }
