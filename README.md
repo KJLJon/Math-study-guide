@@ -27,10 +27,10 @@ Version 4 adds an unlockable level path, adaptive Smart Review, a drag/tap algeb
 
 ## Live site
 
-**https://kjljon.github.io/math-study-guide/**
+**https://kjljon.github.io/Math-study-guide/**
 
 The app is fully static and uses only relative paths, so it runs as-is from the
-`/math-study-guide/` sub-path on GitHub Pages (or any folder on any static host).
+`/Math-study-guide/` sub-path on GitHub Pages (or any folder on any static host).
 
 ### Turn on GitHub Pages (one time)
 
