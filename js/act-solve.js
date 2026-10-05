@@ -86,8 +86,10 @@
       <div class="shortcut" hidden></div>
       <div class="check-panel" hidden></div></div>`);
     const root = host.lastElementChild;
-    const scale = MQ.$('.scale', root), eqn = MQ.$('.eqn', root), trail = MQ.$('.trail', root), tools = MQ.$('.eqn-tools', root), shortcutEl = MQ.$('.shortcut', root);
+    const scale = MQ.$('.scale', root), eqnWrap = MQ.$('.eqn-wrap', root), eqn = MQ.$('.eqn', root), trail = MQ.$('.trail', root), tools = MQ.$('.eqn-tools', root), shortcutEl = MQ.$('.shortcut', root);
     const solution = MQ.solveLinear(st.left, st.right);
+    // Keep the scale and the current equation on screen (in word problems they sit below the story).
+    const showWork = () => MQ.keepInView(scale, eqnWrap);
 
     const sideOf = k => k === 'L' ? st.left : st.right;
     const setSide = (k, e) => { if (k === 'L') st.left = e; else st.right = e; };
@@ -229,6 +231,7 @@
       const glow = ctx.isDemo() || lvl === 0 || (lvl === 1 && attempt > 0);
       MQ.$$('.glow', eqn).forEach(n => n.classList.remove('glow'));
       if (glow) chipFor(best)?.classList.add('glow');
+      showWork();
     }
 
     /* --- wait for a tap or drag on a chip --- */
@@ -263,6 +266,7 @@
           d.chip.classList.remove('lifted'); eqn.classList.remove('dragging');
           if (d.ghost) d.ghost.remove();
           const p = { side: d.chip.dataset.side, part: d.chip.dataset.part, dragged: false };
+          MQ.eatClick();   // the answer buttons appear right away; don't let this tap's click land on one
           if (!d.moved) { MQ.sfx('pick'); finish(p); return; }
           const over = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.side, .eqsign');
           const target = over?.classList.contains('eqsign') ? null : over?.dataset.side;
@@ -336,9 +340,12 @@
         const multi = op.kind === 'mul' && MQ.$$('.term', sideEls[k]).length > 1;
         if (multi) { sideEls[k].insertAdjacentHTML('afterbegin', '<span class="paren">(</span>'); sideEls[k].insertAdjacentHTML('beforeend', '<span class="paren">)</span>'); }
         sideEls[k].insertAdjacentHTML('beforeend', ` <span class="opchip land">${esc(op.chip)}</span>`);
+        // Text-mode scale: show the move on the pan too, so the scale matches the equation.
+        if (scale.classList.contains('text-mode')) MQ.$(`.pan.${k} .pan-items`, scale).insertAdjacentHTML('beforeend', `<span class="pan-op">${esc(op.chip)}</span>`);
         fit();
         return sideEls[k].lastElementChild;
       };
+      showWork();
       MQ.sfx('pop');
       const chipS = addChip(p.side);
       scale.className = scale.className.replace(/ tip-\w+/g, '') + (heavier ? (p.side === 'L' ? ' tip-left' : ' tip-right') : (p.side === 'L' ? ' tip-right' : ' tip-left'));
@@ -397,7 +404,7 @@
       setSide(p.side, newP); setSide(other, newO);
       trail.insertAdjacentHTML('beforeend', `<div class="trail-line"><span>${esc(beforeTxt)}</span><em>${esc(op.label)} both sides</em></div>`);
       MQ.replay(trail.lastElementChild, 'enter');
-      renderScale(); renderEqn();
+      renderScale(); renderEqn(); showWork();
     }
 
     function lineText() {
@@ -433,7 +440,7 @@
         setSide(k, MQ.lScale(g.inner, g.a)); st.group[k] = null;
         trail.insertAdjacentHTML('beforeend', `<div class="trail-line"><span>${esc(before)}</span><em>distribute</em></div>`);
         ctx.say(`Distribute: ${qStr(g.a)} × ${esc(v)} and ${qStr(g.a)} × ${esc(qPretty(g.inner.c))}. Every term inside gets multiplied!`);
-        MQ.sfx('whoosh'); renderScale(); renderEqn(); await sleep(1200);
+        MQ.sfx('whoosh'); renderScale(); renderEqn(); showWork(); await sleep(1200);
         continue;
       }
       MQ.$$('.glow', eqn).forEach(n => n.classList.remove('glow'));
@@ -442,7 +449,9 @@
       const q = p.dragged
         ? `<b>${esc(op.from)}</b> crossed the = sign! What does it really mean?`
         : ctx.level === 0 ? `To undo <b>${esc(op.from)}</b>, use the <b>opposite</b> — and keep the scale balanced. Pick one:` : `How do you undo <b>${esc(op.from)}</b>?`;
-      await ctx.ask(ctx.isDemo() ? `How do I undo <b>${esc(op.from)}</b>?` : q, MQ.shuffle(op.options), { tag: 'op', demoWhy: `It's the <b>opposite</b> of ${esc(op.from)}, and I do it to <b>both sides</b> so the scale stays balanced.` });
+      const asked = ctx.ask(ctx.isDemo() ? `How do I undo <b>${esc(op.from)}</b>?` : q, MQ.shuffle(op.options), { tag: 'op', demoWhy: `It's the <b>opposite</b> of ${esc(op.from)}, and I do it to <b>both sides</b> so the scale stays balanced.` });
+      showWork();   // the choices make the dock taller — keep the scale + equation visible above it
+      await asked;
       const wasDemo = ctx.isDemo();
       await applyMove(p, op);
       ctx.moveDone();
@@ -475,7 +484,7 @@
       panel.innerHTML = `<div class="check-title">🔍 Check: put <b>${esc(v)} = ${esc(vs)}</b> into <b>${esc(st.original.replace(/-/g, '−'))}</b></div>
         <div class="check-row"><span>${esc(sides[0])}</span><b>=</b><span>${esc(sides[1])}</span></div>
         <div class="check-row final"><span class="cv l">?</span><b class="cmp">=</b><span class="cv r">?</span></div>`;
-      MQ.replay(panel, 'enter');
+      MQ.replay(panel, 'enter'); MQ.keepInView(panel);
       await sleep(600);
       await Promise.all([MQ.countTo(MQ.$('.cv.l', panel), 0, MQ.qNum(lv), 700), MQ.countTo(MQ.$('.cv.r', panel), 0, MQ.qNum(rv), 700)]);
       MQ.$('.check-row.final', panel).classList.add('ok');

@@ -177,6 +177,7 @@ h1,h2,h3{color:var(--navy);margin:0;line-height:1.15}
 .pan-items:has(.grp){flex-direction:column-reverse;flex-wrap:nowrap}
 .pan-text{font-size:20px;font-weight:950;color:var(--navy);background:#fff;border:2px solid var(--teal);border-radius:12px;padding:4px 10px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .pan-zero{font-weight:900;color:var(--muted)}
+.pan-op{font-size:16px;font-weight:950;color:#fff;background:var(--purple);border-radius:10px;padding:2px 8px;white-space:nowrap;animation:drop .45s cubic-bezier(.3,1.5,.5,1) both}
 .scale.text-mode{height:130px}
 .scale.text-mode .pan{height:84px}
 .scale.text-mode .fulcrum{height:104px}
